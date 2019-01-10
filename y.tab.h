@@ -50,7 +50,12 @@ extern int yydebug;
     MINUS = 260,
     MUL = 261,
     DIV = 262,
-    END = 263
+    START = 263,
+    END = 264,
+    WRITE = 265,
+    READ = 266,
+    VAR = 267,
+    ASSIGN = 268
   };
 #endif
 /* Tokens.  */
@@ -59,18 +64,23 @@ extern int yydebug;
 #define MINUS 260
 #define MUL 261
 #define DIV 262
-#define END 263
+#define START 263
+#define END 264
+#define WRITE 265
+#define READ 266
+#define VAR 267
+#define ASSIGN 268
 
 /* Value type.  */
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 
 union YYSTYPE
 {
-#line 17 "s1e3.y" /* yacc.c:1909  */
+#line 17 "ast.y" /* yacc.c:1909  */
 
 	struct tnode *yys;	
 
-#line 74 "y.tab.h" /* yacc.c:1909  */
+#line 84 "y.tab.h" /* yacc.c:1909  */
 };
 
 typedef union YYSTYPE YYSTYPE;
