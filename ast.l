@@ -21,9 +21,27 @@
 "/"	{return DIV;}
 "=" {return ASSIGN;}
 ";" {return *yytext;}
+"if" {return IF;}
+"then" {return THEN;}
+"else" {return ELSE;}
+"endif" {return ENDIF;}
+"while" {return WHILE;}
+"do" {return DO;}
+"endwhile" {return ENDWHILE;}
+"break" {return BREAK;}
+"continue" {return CONT;}
+"repeat" {return REPEAT;}
+"until" {return UNTIL;}
+"==" {return EQ;}
+"!=" {return NE;}
+"<" {return LT;}
+">" {return GT;}
+"<=" {return LE;}
+">=" {return GE;}
 "\n" {}
 [()]	{return *yytext;}
 " " {}
+"\t" {}
 .	{printf("%d unknown character\n", *yytext);exit(1);}
 
 %%

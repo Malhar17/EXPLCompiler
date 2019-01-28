@@ -1,0 +1,10 @@
+begin
+	read(a);
+	while(a >=1 ) do
+		if(a == 3) then
+			continue;
+		endif;
+		write(a);
+		a = a-1;
+	endwhile;
+end

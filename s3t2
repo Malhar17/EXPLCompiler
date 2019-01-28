@@ -1,0 +1,7 @@
+begin
+read(a);
+while( a > 1 ) do
+write(a);
+a = a-1;
+endwhile;
+end

@@ -55,7 +55,24 @@ extern int yydebug;
     WRITE = 265,
     READ = 266,
     VAR = 267,
-    ASSIGN = 268
+    ASSIGN = 268,
+    IF = 269,
+    THEN = 270,
+    ELSE = 271,
+    ENDIF = 272,
+    WHILE = 273,
+    DO = 274,
+    ENDWHILE = 275,
+    BREAK = 276,
+    CONT = 277,
+    LT = 278,
+    LE = 279,
+    GT = 280,
+    GE = 281,
+    EQ = 282,
+    NE = 283,
+    REPEAT = 284,
+    UNTIL = 285
   };
 #endif
 /* Tokens.  */
@@ -70,17 +87,34 @@ extern int yydebug;
 #define READ 266
 #define VAR 267
 #define ASSIGN 268
+#define IF 269
+#define THEN 270
+#define ELSE 271
+#define ENDIF 272
+#define WHILE 273
+#define DO 274
+#define ENDWHILE 275
+#define BREAK 276
+#define CONT 277
+#define LT 278
+#define LE 279
+#define GT 280
+#define GE 281
+#define EQ 282
+#define NE 283
+#define REPEAT 284
+#define UNTIL 285
 
 /* Value type.  */
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 
 union YYSTYPE
 {
-#line 17 "ast.y" /* yacc.c:1909  */
+#line 19 "ast.y" /* yacc.c:1909  */
 
 	struct tnode *yys;	
 
-#line 84 "y.tab.h" /* yacc.c:1909  */
+#line 118 "y.tab.h" /* yacc.c:1909  */
 };
 
 typedef union YYSTYPE YYSTYPE;

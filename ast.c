@@ -1,42 +1,49 @@
 struct tnode* makeConstantNode(int n){
-    struct tnode *temp;
-    temp = (struct tnode*)malloc(sizeof(struct tnode));
-    temp->type = 0;
-    temp->nodetype = 0;
-    temp->varname = NULL;
-    temp->val = n;
-    temp->left = NULL;
-    temp->right = NULL;
-    return temp;
-}
-
-struct tnode* makeOperatorNode(char c,struct tnode *l,struct tnode *r){
-    struct tnode *temp;
-    temp = (struct tnode*)malloc(sizeof(struct tnode));
-    temp->varname = malloc(sizeof(char));
-    *(temp->varname) = c;
-    temp->nodetype = 0;
-    temp->left = l;
-    temp->right = r;
-    return temp;
+    struct tnode *t;
+    t = (struct tnode*)malloc(sizeof(struct tnode));
+    t->type = inttype;
+    t->nodetype = LF;
+    t->varname = NULL;
+    t->val = n;
+    t->left = NULL;
+    t->right = NULL;
+    return t;
 }
 
 struct tnode* makeVarNode(char c){
-    struct tnode *temp;
-    temp = (struct tnode*)malloc(sizeof(struct tnode));
-    temp->type = 1;
-    temp->nodetype = 0;
-    temp->varname = malloc(sizeof(char));
-    *(temp->varname) = c;
-    temp->left = NULL;
-    temp->right = NULL;
-    return temp;
+    struct tnode *t;
+    t = (struct tnode*)malloc(sizeof(struct tnode));
+    t->type = inttype;
+    t->nodetype = LF;
+    t->varname = malloc(sizeof(char));
+    *(t->varname) = c;
+    t->left = NULL;
+    t->right = NULL;
+    return t;
 }
+
+struct tnode* makeOperatorNode(char c,struct tnode *l,struct tnode *r){
+    if(l->type != inttype || r->type != inttype)
+    {
+        printf("Type mismatch\n");
+        exit(1);
+    }
+    struct tnode *t;
+    t = (struct tnode*)malloc(sizeof(struct tnode));
+    t->varname = malloc(sizeof(char));
+    *(t->varname) = c;
+    t->type = l->type;
+    t->nodetype = OP;
+    t->left = l;
+    t->right = r;
+    return t;
+}
+
 
 struct tnode* makeReadNode(struct tnode *l){
     struct tnode *t;
     t = (struct tnode*)malloc(sizeof(struct tnode));
-    t->nodetype = 1;
+    t->nodetype = RD;
     t->left = l;
     t->right = NULL;
     t->varname = NULL;
@@ -44,9 +51,14 @@ struct tnode* makeReadNode(struct tnode *l){
 }
 
 struct tnode* makeWriteNode(struct tnode *l){
+    if(l->type != inttype)
+    {
+        printf("Type mismatch\n");
+        exit(1);
+    }
     struct tnode *t;
     t = (struct tnode*)malloc(sizeof(struct tnode));
-    t->nodetype = 2;
+    t->nodetype = WT;
     t->left = l;
     t->right = NULL;
     t->varname = NULL;
@@ -56,18 +68,130 @@ struct tnode* makeWriteNode(struct tnode *l){
 struct tnode* makeConnectorNode(struct tnode *l, struct tnode *r){
     struct tnode *t;
     t = (struct tnode*)malloc(sizeof(struct tnode));
-    t->nodetype = 3;
+    t->nodetype = CNT;
     t->left = l;
     t->right = r;
     t->varname = NULL;
     return t;
 }
 
+struct tnode* makeIfElseNode(struct tnode *l, struct tnode *m, struct tnode *r)
+{
+    if(l->type != booltype)
+    {
+        printf("Type mismatch\n");
+        exit(1);
+    }
+    struct tnode *t;
+    t = (struct tnode*)malloc(sizeof(struct tnode));
+    t->nodetype = IFEL;
+    struct tnode *e;
+    e = (struct tnode*)malloc(sizeof(struct tnode));
+    e->nodetype = CNT;
+    e->left = m;
+    e->right = r;
+    t->left = l;
+    t->right = e;
+    return t;
+}
+
+struct tnode* makeIfNode(struct tnode *l, struct tnode *r)
+{
+    if(l->type != booltype)
+    {
+        printf("Type mismatch\n");
+        exit(1);
+    }
+    struct tnode *t;
+    t = (struct tnode*)malloc(sizeof(struct tnode));
+    t->nodetype = IFST;
+    t->left = l;
+    t->right = r;
+    return t;
+}
+
+struct tnode* makeWhileNode(struct tnode *l, struct tnode *r)
+{
+    if(l->type != booltype)
+    {
+        printf("Type mismatch\n");
+        exit(1);
+    }
+    struct tnode *t;
+    t = (struct tnode*)malloc(sizeof(struct tnode));
+    t->nodetype = WHILEDO;
+    t->left = l;
+    t->right = r;
+    return t;   
+}
+
+struct tnode* makeRepeatNode(struct tnode *l, struct tnode *r)
+{
+    if(r->type != booltype)
+    {
+        printf("Type mismatch\n");
+        exit(1);
+    }
+    struct tnode *t;
+    t = (struct tnode*)malloc(sizeof(struct tnode));
+    t->nodetype = REPEATTUNTIL;
+    t->left = l;
+    t->right = r;
+    return t;   
+}
+
+struct tnode* makeDoWhileNode(struct tnode *l, struct tnode *r)
+{
+    if(r->type != booltype)
+    {
+        printf("Type mismatch\n");
+        exit(1);
+    }
+    struct tnode *t;
+    t = (struct tnode*)malloc(sizeof(struct tnode));
+    t->nodetype = DOWHILE;
+    t->left = l;
+    t->right = r;
+    return t;   
+}
+
+struct tnode* makeCondNode(char *c, struct tnode *l, struct tnode *r)
+{
+    if(l->type != inttype || r->type != inttype)
+    {
+        printf("Type mismatch\n");
+        exit(1);
+    }
+    struct tnode *t;
+    t = (struct tnode*)malloc(sizeof(struct tnode));
+    t->varname = c;
+    t->type = booltype;
+    t->nodetype = COND;
+    t->left = l;
+    t->right = r;
+    return t;
+}
+
+struct tnode* makeJmpNode(int x)
+{
+    struct tnode *t = (struct tnode*)malloc(sizeof(struct tnode));
+    t->nodetype = x;
+    t->left  = t->right = NULL;
+    return t;
+}
+
 int getreg()
 {
-    int temp = reg;
+    int t = reg;
     reg++;
-    return temp;
+    return t;
+}
+
+int getLabel()
+{
+    int t = label;
+    label++;
+    return t;
 }
 
 void freereg()
@@ -77,38 +201,42 @@ void freereg()
 }
 
 int codeGen(struct tnode *t){
-    if(t->left == NULL && t->right == NULL)
-    {
-        int temp = getreg();
-        if(t->type == 0)
-        {
-            fprintf(fp, "MOV R%d, %d\n",temp, t->val);
-        }
-        else
-        {
-            int st = *(t->varname) - 'a' + 4096;
-            fprintf(fp, "MOV R%d, [%d]\n",temp, st);
-        }
-        return temp;
-    }
     switch(t->nodetype)
     {
-        case 0 :
+        case LF:
         {
-            int l = codeGen(t->left);
+            int temp = getreg();
+            if(t->varname == NULL)
+            {
+                fprintf(fp, "MOV R%d, %d\n",temp, t->val);
+            }
+            else
+            {
+                int st = *(t->varname) - 'a' + 4096;
+                fprintf(fp, "MOV R%d, [%d]\n",temp, st);
+            }
+            return temp;
+        }
+        case OP :
+        {
+            int l;
             int r = codeGen(t->right);
             switch(*(t->varname))
             {
                 case '+':
+                    l = codeGen(t->left);
                     fprintf(fp, "ADD R%d, R%d\n", l, r);
                     break;
                 case '*':
+                    l = codeGen(t->left);
                     fprintf(fp, "MUL R%d, R%d\n", l, r);
                     break;
                 case '-':
+                    l = codeGen(t->left);
                     fprintf(fp, "SUB R%d, R%d\n", l, r);
                     break;
                 case '/':
+                    l = codeGen(t->left);
                     fprintf(fp, "DIV R%d, R%d\n", l, r);
                     break;
                 case '=':
@@ -119,7 +247,7 @@ int codeGen(struct tnode *t){
             freereg();
             return l;
         }
-        case 1 :
+        case RD :
         {
             int st = *((t->left)->varname) - 'a' + 4096;
             int temp = getreg();
@@ -142,7 +270,7 @@ int codeGen(struct tnode *t){
             return 0;
         }
 
-        case 2 :
+        case WT :
         {
            int x = codeGen(t->left);
             int temp = getreg();
@@ -165,10 +293,125 @@ int codeGen(struct tnode *t){
             return 0;
         }
 
-        case 3 :
+        case CNT :
             codeGen(t->left);
             codeGen(t->right);
             break;
+
+        case WHILEDO:
+        {
+            int label1 = getLabel();
+            int label2 = getLabel();
+            int x = whilelabel;
+            whilelabel = label2;
+            fprintf(fp, "BRKP\n");
+            fprintf(fp, "L%d:\n",label1);
+            int l = codeGen(t->left);
+            fprintf(fp, "JZ R%d, L%d\n",l, label2 );
+            codeGen(t->right);
+            fprintf(fp, "JMP L%d\n", label1);
+            fprintf(fp, "L%d:\n",label2);
+            whilelabel = x;
+            freereg();
+            break;
+        }
+
+        case REPEATTUNTIL:
+        {
+            int label1 = getLabel();
+            int label2 = getLabel();
+            int x = whilelabel;
+            whilelabel = label2;
+            fprintf(fp, "BRKP\n");
+            fprintf(fp, "L%d:\n",label1);
+            codeGen(t->left);
+            int l = codeGen(t->right);
+            fprintf(fp, "JZ R%d, L%d\n",l, label1 );
+            fprintf(fp, "L%d:\n",label2);
+            whilelabel = x;
+            freereg();
+            break;
+        }
+
+        case DOWHILE:
+        {
+            int label1 = getLabel();
+            int label2 = getLabel();
+            int x = whilelabel;
+            whilelabel = label2;
+            fprintf(fp, "BRKP\n");
+            fprintf(fp, "L%d:\n",label1);
+            codeGen(t->left);
+            int l = codeGen(t->right);
+            fprintf(fp, "JNZ R%d, L%d\n",l, label1 );
+            fprintf(fp, "L%d:\n",label2);
+            whilelabel = x;
+            freereg();
+            break;
+        }
+
+        case IFST:
+        {
+            int label1 = getLabel();
+            int l = codeGen(t->left);
+            fprintf(fp, "JZ R%d, L%d\n",l, label1 );
+            codeGen(t->right);
+            fprintf(fp, "L%d:\n",label1);
+            freereg();
+            break;
+        }
+
+        case IFEL:
+        {
+            int label1 = getLabel();
+            int label2 = getLabel();
+            int l = codeGen(t->left);
+            fprintf(fp, "JZ R%d, L%d\n", l, label1);
+            codeGen((t->right)->left);
+            fprintf(fp, "JMP L%d\n", label2);
+            fprintf(fp, "L%d:\n", label1);
+            codeGen((t->right)->right);
+            fprintf(fp, "L%d:\n", label2);
+            freereg();
+            break;
+        }
+
+        case COND:
+        {
+            int l = codeGen(t->left);
+            int r = codeGen(t->right);
+            if(strcmp(t->varname, "==")==0)
+                fprintf(fp, "EQ R%d, R%d\n", l, r);
+            else if(strcmp(t->varname, "!=")==0)
+                fprintf(fp, "NE R%d, R%d\n", l, r);
+            else if(strcmp(t->varname, "<")==0)
+                fprintf(fp, "LT R%d, R%d\n", l, r);
+            else if(strcmp(t->varname, "<=")==0)
+                fprintf(fp, "LE R%d, R%d\n", l, r);
+            else if(strcmp(t->varname, ">")==0)
+                fprintf(fp, "GT R%d, R%d\n", l, r);
+            else if(strcmp(t->varname, ">=")==0)
+                fprintf(fp, "GE R%d, R%d\n", l, r);
+            freereg();
+            return l;
+        }
+
+        case BRKST:
+        {
+            if(whilelabel == -1)
+                break;
+            fprintf(fp, "JMP L%d\n", whilelabel);
+            break;
+        }
+
+        case CONTST:
+        {
+            if(whilelabel == -1)
+                break;
+            fprintf(fp, "JMP L%d\n", (whilelabel-1));
+            break;
+        }
+
     }
     return 0;
 }
