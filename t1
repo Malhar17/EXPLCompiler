@@ -1,0 +1,27 @@
+begin
+	read(n);
+	i = 0;
+	s = 0;
+	while(i < n) do
+		j = 0;
+		while(j < n) do
+			k = 0;
+			while(k < n) do
+				s = s + 1;
+				if(s >= 30) then
+					break;
+				endif;
+				k = k + 1;
+			endwhile;
+			if(s >= 30) then
+				break;
+			endif;
+			j = j + 1;
+		endwhile;
+		if(s >= 30) then
+			break;
+		endif;
+		i = i + 1;
+	endwhile;
+	write(s);
+end
