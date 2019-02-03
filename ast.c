@@ -1,31 +1,117 @@
+struct varList* makeVarList(char *name)
+{
+    struct varList *x = (struct varList*)malloc(sizeof(struct varList));
+    x->name = name;
+    x->next = NULL;
+    return x;
+}
+
+struct varList* addVarList(struct varList *p, char *name)
+{
+    struct varList* q = (struct varList*)malloc(sizeof(struct varList));
+    q->name = name;
+    q->next = p;
+    return q;
+}
+
+struct Gsymbol* lookUp(char *name)
+{
+    struct Gsymbol *x = symTable;
+    while(x != NULL)
+    {
+        if(strcmp(x->name, name) == 0)
+            break;
+        x = x->next;
+    }
+    return x;
+}
+
+int getBinding(int size)
+{
+    int temp = bindingAddress;
+    bindingAddress = bindingAddress + size;
+    return temp;
+}
+
+void install(char *name, int type, int size)
+{
+    if(lookUp(name) != NULL)
+    {
+        printf("%s declared again\n", name);
+        exit(1);
+    }
+    struct Gsymbol *x = (struct Gsymbol*)malloc(sizeof(struct Gsymbol));
+    x->name = name;
+    x->type = type;
+    x->size = size;
+    x->binding = getBinding(size);
+    x->next = symTable;
+    symTable = x;
+}
+
+void printSymTable()
+{
+    struct Gsymbol *x = symTable;
+    printf("name\ttype\tsize\tbinding\n");
+    while(x != NULL)
+    {
+        printf("%s\t%d\t%d\t%d\n",x->name,x->type,x->size,x->binding);
+        x = x->next;
+    }
+}
+
 struct tnode* makeConstantNode(int n){
+//    printf("Const %d\n", n );
     struct tnode *t;
     t = (struct tnode*)malloc(sizeof(struct tnode));
     t->type = inttype;
     t->nodetype = LF;
     t->varname = NULL;
+    t->Gentry = NULL;
     t->val = n;
     t->left = NULL;
     t->right = NULL;
     return t;
 }
 
-struct tnode* makeVarNode(char c){
+struct tnode* makeStringNode(char *c){
+//    printf("String %s\n", c );
     struct tnode *t;
     t = (struct tnode*)malloc(sizeof(struct tnode));
-    t->type = inttype;
+    t->type = strtype;
     t->nodetype = LF;
-    t->varname = malloc(sizeof(char));
-    *(t->varname) = c;
+    t->varname = c;
+    t->Gentry = NULL;
+    t->left = NULL;
+    t->right = NULL;
+    return t;
+}
+
+struct tnode* makeVarNode(char *c){
+//    printf("Var %s\n", c );
+    struct Gsymbol *x = (struct Gsymbol*)malloc(sizeof(struct Gsymbol));
+    x = lookUp(c);
+    if(x == NULL)
+    {
+        printf("%s Undeclared\n",c);
+        exit(1);
+    }
+    struct tnode *t;
+    t = (struct tnode*)malloc(sizeof(struct tnode));
+    t->type = x->type;
+    t->nodetype = LF;
+    t->varname = c;
+    t->Gentry = x;
     t->left = NULL;
     t->right = NULL;
     return t;
 }
 
 struct tnode* makeOperatorNode(char c,struct tnode *l,struct tnode *r){
-    if(l->type != inttype || r->type != inttype)
+//    printf("OP %c\n", c );
+    if(l->type != r->type)
     {
-        printf("Type mismatch\n");
+        printf("OP Type mismatch\n");
         exit(1);
     }
     struct tnode *t;
@@ -41,6 +127,7 @@ struct tnode* makeOperatorNode(char c,struct tnode *l,struct tnode *r){
 
 
 struct tnode* makeReadNode(struct tnode *l){
+//    printf("RD %s\n", l->varname );
     struct tnode *t;
     t = (struct tnode*)malloc(sizeof(struct tnode));
     t->nodetype = RD;
@@ -51,9 +138,10 @@ struct tnode* makeReadNode(struct tnode *l){
 }
 
 struct tnode* makeWriteNode(struct tnode *l){
-    if(l->type != inttype)
+//    printf("WT %s\n", l->varname );
+    if(l->type != inttype && l->type != strtype)
     {
-        printf("Type mismatch\n");
+        printf("WT %s Type mismatch\n",l->varname);
         exit(1);
     }
     struct tnode *t;
@@ -205,6 +293,7 @@ int codeGen(struct tnode *t){
     {
         case LF:
         {
+//            printf("LF %d\n", t->type );
             int temp = getreg();
             if(t->varname == NULL)
             {
@@ -212,13 +301,21 @@ int codeGen(struct tnode *t){
             }
             else
             {
-                int st = *(t->varname) - 'a' + 4096;
-                fprintf(fp, "MOV R%d, [%d]\n",temp, st);
+                if(t->Gentry == NULL)
+                {
+                    fprintf(fp, "MOV R%d, %s\n",temp, t->varname);
+                }
+                else
+                {
+                    int st = (t->Gentry)->binding;
+                    fprintf(fp, "MOV R%d, [%d]\n",temp, st);
+                }
             }
             return temp;
         }
         case OP :
         {
+//            printf("OP %c\n", *(t->varname) );
             int l;
             int r = codeGen(t->right);
             switch(*(t->varname))
@@ -240,7 +337,7 @@ int codeGen(struct tnode *t){
                     fprintf(fp, "DIV R%d, R%d\n", l, r);
                     break;
                 case '=':
-                {   int st = *((t->left)->varname) - 'a' + 4096;
+                {   int st = ((t->left)->Gentry)->binding;
                     fprintf(fp, "MOV [%d], R%d\n", st, r);
                 }
             }
@@ -249,7 +346,8 @@ int codeGen(struct tnode *t){
         }
         case RD :
         {
-            int st = *((t->left)->varname) - 'a' + 4096;
+//            printf("RD %s\n", (t->left)->varname );
+            int st = ((t->left)->Gentry)->binding;
             int temp = getreg();
             fprintf(fp, "BRKP\n");
             fprintf(fp, "MOV R%d, 7\n", temp);
@@ -272,7 +370,8 @@ int codeGen(struct tnode *t){
 
         case WT :
         {
-           int x = codeGen(t->left);
+//            printf("WT \n" );
+            int x = codeGen(t->left);
             int temp = getreg();
             fprintf(fp, "BRKP\n");
             fprintf(fp, "MOV R%d, 5\n", temp);
@@ -300,6 +399,7 @@ int codeGen(struct tnode *t){
 
         case WHILEDO:
         {
+//            printf("WHILEDO \n");
             int label1 = getLabel();
             int label2 = getLabel();
             int x = whilelabel;
@@ -378,6 +478,7 @@ int codeGen(struct tnode *t){
 
         case COND:
         {
+//            printf("COND \n");
             int l = codeGen(t->left);
             int r = codeGen(t->right);
             if(strcmp(t->varname, "==")==0)

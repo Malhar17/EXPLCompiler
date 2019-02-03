@@ -54,7 +54,7 @@ extern int yydebug;
     END = 264,
     WRITE = 265,
     READ = 266,
-    VAR = 267,
+    ID = 267,
     ASSIGN = 268,
     IF = 269,
     THEN = 270,
@@ -72,7 +72,12 @@ extern int yydebug;
     EQ = 282,
     NE = 283,
     REPEAT = 284,
-    UNTIL = 285
+    UNTIL = 285,
+    DECL = 286,
+    ENDDECL = 287,
+    INT = 288,
+    STR = 289,
+    STRING = 290
   };
 #endif
 /* Tokens.  */
@@ -85,7 +90,7 @@ extern int yydebug;
 #define END 264
 #define WRITE 265
 #define READ 266
-#define VAR 267
+#define ID 267
 #define ASSIGN 268
 #define IF 269
 #define THEN 270
@@ -104,17 +109,25 @@ extern int yydebug;
 #define NE 283
 #define REPEAT 284
 #define UNTIL 285
+#define DECL 286
+#define ENDDECL 287
+#define INT 288
+#define STR 289
+#define STRING 290
 
 /* Value type.  */
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 
 union YYSTYPE
 {
-#line 19 "ast.y" /* yacc.c:1909  */
+#line 21 "ast.y" /* yacc.c:1909  */
 
 	struct tnode *yys;	
+	int integer;
+	struct varList *varNameList;
+	char *string;
 
-#line 118 "y.tab.h" /* yacc.c:1909  */
+#line 131 "y.tab.h" /* yacc.c:1909  */
 };
 
 typedef union YYSTYPE YYSTYPE;
