@@ -4,7 +4,6 @@
 	#include "ast.h"
 	#include <stdlib.h>
 	YYSTYPE yylval;
-	int number;
 	int linenumber = 1;
 	int charnumber = 1;
 	char* stringcopy(char *b, int n);
@@ -12,18 +11,18 @@
 
 %%
 
-[0-9]+	{number = atoi(yytext); yylval.yys = makeConstantNode(number); charnumber += yyleng; return NUM;}
-"read" {charnumber += yyleng;return READ;}
-"write" {charnumber += yyleng;return WRITE;}
+[0-9]+	{yylval.integer = atoi(yytext); charnumber += yyleng; return NUM;}
+"read" {printf("Read\n");charnumber += yyleng;return READ;}
+"write" {printf("Write\n");charnumber += yyleng;return WRITE;}
 "begin" {charnumber += yyleng;return START;}
 "end" {charnumber += yyleng;return END;}
-"if" {charnumber += yyleng;return IF;}
-"then" {charnumber += yyleng;return THEN;}
-"else" {charnumber += yyleng;return ELSE;}
-"endif" {charnumber += yyleng;return ENDIF;}
-"while" {charnumber += yyleng;return WHILE;}
-"do" {charnumber += yyleng;return DO;}
-"endwhile" {charnumber += yyleng;return ENDWHILE;}
+"if" {printf("if\n");charnumber += yyleng;return IF;}
+"then" {printf("then\n");charnumber += yyleng;return THEN;}
+"else" {printf("else\n");charnumber += yyleng;return ELSE;}
+"endif" {printf("endif\n");charnumber += yyleng;return ENDIF;}
+"while" {printf("while\n");charnumber += yyleng;return WHILE;}
+"do" {printf("do\n");charnumber += yyleng;return DO;}
+"endwhile" {printf("endwhile\n");charnumber += yyleng;return ENDWHILE;}
 "break" {charnumber += yyleng;return BREAK;}
 "continue" {charnumber += yyleng;return CONT;}
 "repeat" {charnumber += yyleng;return REPEAT;}
@@ -42,15 +41,18 @@
 "-"	{charnumber += yyleng;return MINUS;}
 "*"	{charnumber += yyleng;return MUL;}
 "/"	{charnumber += yyleng;return DIV;}
+"%" {charnumber += yyleng;return MOD;}
 "=" {charnumber += yyleng;return ASSIGN;}
 ";" {charnumber += yyleng;return *yytext;}
+"["	{charnumber += yyleng;return *yytext;}
+"]"	{charnumber += yyleng;return *yytext;}
 "\n" {linenumber++; charnumber = 1;}
 [()]	{charnumber += yyleng;return *yytext;}
 " " {charnumber += yyleng;}
 "," {charnumber += yyleng; return *yytext;}
 "\t" {charnumber += yyleng;}
 "\"".*"\"" {char *var = stringcopy(yytext, yyleng);charnumber += yyleng;yylval.string = var; return STRING;}
-[a-z][a-z|0-9]* {char *var = stringcopy(yytext, yyleng);charnumber += yyleng;yylval.string = var; return ID;}
+[a-z][a-z|0-9]* {char *var = stringcopy(yytext, yyleng);printf("%s\n",var);charnumber += yyleng;yylval.string = var; return ID;}
 .	{printf("%d.%d unknown character\n", linenumber, charnumber);exit(1);}
 
 %%

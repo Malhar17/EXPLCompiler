@@ -1,16 +1,20 @@
-struct varList* makeVarList(char *name)
+struct varList* makeVarList(char *name, int size, int rowsize)
 {
     struct varList *x = (struct varList*)malloc(sizeof(struct varList));
     x->name = name;
     x->next = NULL;
+    x->size = size;
+    x->rowsize = size;
     return x;
 }
 
-struct varList* addVarList(struct varList *p, char *name)
+struct varList* addVarList(struct varList *p, char *name, int size, int rowsize)
 {
     struct varList* q = (struct varList*)malloc(sizeof(struct varList));
     q->name = name;
     q->next = p;
+    q->size = size;
+    q->rowsize = rowsize;
     return q;
 }
 
@@ -33,7 +37,7 @@ int getBinding(int size)
     return temp;
 }
 
-void install(char *name, int type, int size)
+void install(char *name, int type, int size, int rowsize)
 {
     if(lookUp(name) != NULL)
     {
@@ -44,7 +48,8 @@ void install(char *name, int type, int size)
     x->name = name;
     x->type = type;
     x->size = size;
-    x->binding = getBinding(size);
+    x->rowsize = rowsize;
+    x->binding = getBinding(size*rowsize);
     x->next = symTable;
     symTable = x;
 }
@@ -55,7 +60,7 @@ void printSymTable()
     printf("name\ttype\tsize\tbinding\n");
     while(x != NULL)
     {
-        printf("%s\t%d\t%d\t%d\n",x->name,x->type,x->size,x->binding);
+        printf("%s\t%d\t%d\t%d\t%d\n",x->name,x->type,x->size,x->rowsize,x->binding);
         x = x->next;
     }
 }
@@ -104,6 +109,56 @@ struct tnode* makeVarNode(char *c){
     t->Gentry = x;
     t->left = NULL;
     t->right = NULL;
+    return t;
+}
+
+struct tnode* makeArrayNode(char *c, struct tnode *l){
+//    printf("Var %s\n", c );
+    struct Gsymbol *x = (struct Gsymbol*)malloc(sizeof(struct Gsymbol));
+    x = lookUp(c);
+    if(x == NULL)
+    {
+        printf("%s Undeclared\n",c);
+        exit(1);
+    }
+    if(l->type != inttype)
+    {
+        printf("Type mismatch\n");
+        exit(1);
+    }
+    struct tnode *t;
+    t = (struct tnode*)malloc(sizeof(struct tnode));
+    t->type = x->type;
+    t->nodetype = ARRAY;
+    t->varname = c;
+    t->Gentry = x;
+    t->left = l;
+    t->right = NULL;
+    return t;
+}
+
+struct tnode* make2DArrayNode(char *c, struct tnode *l, struct tnode *r){
+//    printf("Var %s\n", c );
+    struct Gsymbol *x = (struct Gsymbol*)malloc(sizeof(struct Gsymbol));
+    x = lookUp(c);
+    if(x == NULL)
+    {
+        printf("%s Undeclared\n",c);
+        exit(1);
+    }
+    if(l->type != inttype || r->type != inttype)
+    {
+        printf("Type mismatch\n");
+        exit(1);
+    }
+    struct tnode *t;
+    t = (struct tnode*)malloc(sizeof(struct tnode));
+    t->type = x->type;
+    t->nodetype = ARRAY;
+    t->varname = c;
+    t->Gentry = x;
+    t->left = l;
+    t->right = r;
     return t;
 }
 
@@ -317,28 +372,56 @@ int codeGen(struct tnode *t){
         {
 //            printf("OP %c\n", *(t->varname) );
             int l;
-            int r = codeGen(t->right);
+            int r;
             switch(*(t->varname))
             {
                 case '+':
                     l = codeGen(t->left);
+                    r = codeGen(t->right);
                     fprintf(fp, "ADD R%d, R%d\n", l, r);
                     break;
                 case '*':
                     l = codeGen(t->left);
+                    r = codeGen(t->right);
                     fprintf(fp, "MUL R%d, R%d\n", l, r);
                     break;
                 case '-':
                     l = codeGen(t->left);
+                    r = codeGen(t->right);
                     fprintf(fp, "SUB R%d, R%d\n", l, r);
                     break;
                 case '/':
                     l = codeGen(t->left);
+                    r = codeGen(t->right);
                     fprintf(fp, "DIV R%d, R%d\n", l, r);
                     break;
+                case '%':
+                    l = codeGen(t->left);
+                    r = codeGen(t->right);
+                    fprintf(fp, "MOD R%d, R%d\n", l, r);
+                    break;
                 case '=':
-                {   int st = ((t->left)->Gentry)->binding;
-                    fprintf(fp, "MOV [%d], R%d\n", st, r);
+                {   r = codeGen(t->right);
+                    if((t->left)->nodetype == LF)
+                    {
+                        int st = ((t->left)->Gentry)->binding;
+                        fprintf(fp, "MOV [%d], R%d\n", st, r);
+                    }
+                    else if((t->left)->nodetype == ARRAY)
+                    {
+                        int st = ((t->left)->Gentry)->binding;
+                        int l = codeGen((t->left)->left);
+                        if((t->left)->right != NULL)
+                        {
+                            int row = codeGen((t->left)->right);
+                            fprintf(fp, "MUL R%d, %d\n",l, ((t->left)->Gentry)->rowsize);
+                            fprintf(fp, "ADD R%d, R%d\n",l, row );
+                            freereg();
+                        }
+                        fprintf(fp, "ADD R%d, %d\n", l, st);
+                        fprintf(fp, "MOV [R%d], R%d\n", l, r);
+                        freereg();
+                    }
                 }
             }
             freereg();
@@ -347,14 +430,32 @@ int codeGen(struct tnode *t){
         case RD :
         {
 //            printf("RD %s\n", (t->left)->varname );
-            int st = ((t->left)->Gentry)->binding;
             int temp = getreg();
             fprintf(fp, "BRKP\n");
             fprintf(fp, "MOV R%d, 7\n", temp);
             fprintf(fp, "PUSH R%d\n", temp);
             fprintf(fp, "MOV R%d, -1\n", temp);
             fprintf(fp, "PUSH R%d\n", temp);
-            fprintf(fp, "MOV R%d, %d\n", temp, st);
+            if((t->left)->nodetype == LF)
+            {
+                int st = ((t->left)->Gentry)->binding;
+                fprintf(fp, "MOV R%d, %d\n", temp, st);
+            }
+            else if((t->left)->nodetype == ARRAY)
+            {
+
+                int st = ((t->left)->Gentry)->binding;
+                int l = codeGen((t->left)->left);
+                if((t->left)->right != NULL)
+                {
+                    int r = codeGen((t->left)->right);
+                    fprintf(fp, "MUL R%d, %d\n",l, ((t->left)->Gentry)->rowsize);
+                    fprintf(fp, "ADD R%d, R%d\n",l, r );
+                    freereg();
+                }
+                fprintf(fp, "ADD R%d, %d\n", l, st);
+                fprintf(fp, "MOV R%d, R%d\n", temp, l);
+            }
             fprintf(fp, "PUSH R%d\n", temp);
             fprintf(fp, "PUSH R%d\n", temp);
             fprintf(fp, "PUSH R0\n");
@@ -365,6 +466,8 @@ int codeGen(struct tnode *t){
             fprintf(fp, "POP R0\n");
             fprintf(fp, "POP R0\n");
             freereg();
+            if((t->left)->nodetype == ARRAY)
+                freereg();
             return 0;
         }
 
@@ -511,6 +614,23 @@ int codeGen(struct tnode *t){
                 break;
             fprintf(fp, "JMP L%d\n", (whilelabel-1));
             break;
+        }
+
+        case ARRAY:
+        {
+            int st = (t->Gentry)->binding;
+            int l = codeGen(t->left);
+            int r;
+            if(t->right != NULL)
+            {
+                r = codeGen(t->right);
+                fprintf(fp, "MUL R%d, %d\n",l, (t->Gentry)->rowsize);
+                fprintf(fp, "ADD R%d, R%d\n",l, r );
+                freereg();
+            }
+            fprintf(fp, "ADD R%d, %d\n",l, st);
+            fprintf(fp, "MOV R%d, [R%d]\n", l, l);
+            return l;
         }
 
     }

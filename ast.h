@@ -14,12 +14,15 @@
 #define CONTST 10
 #define DOWHILE 11
 #define REPEATTUNTIL 12
+#define ARRAY 13
+
 
 
 struct Gsymbol {
 	char* name;		// name of the variable
 	int type;		// type of the variable
 	int size;		// size of the type of the variable
+	int rowsize;	// size of each row (only for 2D array)
 	int binding;	// stores the static memory address allocated to the variable
 	struct Gsymbol *next;
 };
@@ -36,6 +39,8 @@ typedef struct tnode {
 struct varList {
 	char *name;
 	struct varList *next;
+	int size;
+	int rowsize;
 };
 //Create a node tnode*/
 //struct tnode* createTree(int val, int type, char* c, int nodetype, struct tnode *l, struct tnode *r);
@@ -80,13 +85,19 @@ struct tnode* makeDoWhileNode(struct tnode *l, struct tnode *r);
 struct tnode* makeRepeatNode(struct tnode *l, struct tnode *r);
 
 //make variable list
-struct varList* makeVarList(char *name);
+struct varList* makeVarList(char *name, int size, int rowsize);
 
 //add variable to list
-struct varList* addVarList(struct varList *p, char *name);
+struct varList* addVarList(struct varList *p, char *name, int size, int rowsize);
 
 //print global symbol table
 void printSymTable();
 
 //make string node
 struct tnode* makeStringNode(char *c);
+
+//make array node
+struct tnode* makeArrayNode(char *c, struct tnode *l);
+
+//make 2d array node
+struct tnode* make2DArrayNode(char *c, struct tnode *l, struct tnode *r);

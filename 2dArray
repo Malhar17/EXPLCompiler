@@ -1,0 +1,30 @@
+decl
+	int sum, num[5][2], i, j;	
+	str mesg;
+enddecl
+begin
+i = 0;
+sum = 0;
+while (i < 5) do
+	j = 0;
+	while (j < 2) do
+		read(num[i][j]);
+		j = j+1;
+	endwhile;	
+	i = i + 1;
+endwhile;
+i = 0;
+write("array is");
+while (i < 5) do
+	j = 0;
+	while (j < 2) do
+		sum = sum + num[i][j];
+		j = j+1;
+	endwhile;	
+	i = i + 1;
+endwhile;
+write("sum is:");
+write(sum);
+mesg = "good bye";
+write(mesg);
+end

@@ -25,15 +25,15 @@
 	char *string;
 };
 
-%token NUM PLUS MINUS MUL DIV START END WRITE READ ID ASSIGN IF THEN ELSE ENDIF WHILE DO ENDWHILE BREAK CONT LT LE GT GE EQ NE REPEAT UNTIL
+%token NUM PLUS MINUS MUL DIV START END WRITE READ ID ASSIGN IF THEN ELSE ENDIF WHILE DO ENDWHILE BREAK CONT LT LE GT GE EQ NE REPEAT UNTIL MOD
 %token DECL ENDDECL INT STR STRING
 
 %left EQ NE LE LT GE GT
 %left PLUS MINUS
-%left MUL DIV
+%left MUL DIV MOD
 
-%type <yys> NUM expr WRITE READ ASSIGN stmt slist asgstmt instmt outstmt wedo iets ietse dowe reun
-%type <integer> type
+%type <yys> expr WRITE READ ASSIGN stmt slist asgstmt instmt outstmt wedo iets ietse dowe reun
+%type <integer> type NUM
 %type <varNameList> varlist
 %type <string> ID STRING
 
@@ -60,7 +60,7 @@ decllist : decllist decl {}
 decl : type varlist ';' {
 							while($2 != NULL)
 							{
-								install($2->name, $1, 1);
+								install($2->name, $1, $2->size, $2->rowsize);
 								$2 = $2->next;
 							}
 						} 
@@ -70,8 +70,12 @@ type : INT { $$ = inttype;}
 	| STR {$$ = strtype;}
 	;
 
-varlist : varlist ','  ID {$$ = addVarList($1, $3);}
-	| ID {$$ = makeVarList($1);}
+varlist : varlist ','  ID {$$ = addVarList($1, $3, 1, 1);}
+	| varlist ','  ID '[' NUM ']' {$$ = addVarList($1, $3, 1, $5);}
+	| varlist ','  ID '[' NUM ']' '[' NUM ']' {$$ = addVarList($1, $3, $5, $8);}
+	| ID {$$ = makeVarList($1, 1, 1);}
+	| ID '[' NUM ']' {$$ = makeVarList($1, 1, $3);}
+	| ID '[' NUM ']' '[' NUM ']' {$$ = makeVarList($1, $3, $6);}
 	;
 
 slist : slist stmt ';' {$$ = makeConnectorNode($1, $2);}
@@ -96,11 +100,17 @@ iets : IF '(' expr ')' THEN slist ENDIF  { $$ = makeIfNode($3, $6);};
 
 ietse : IF '(' expr ')' THEN slist ELSE slist ENDIF  { $$ = makeIfElseNode($3, $6, $8);};
 
-instmt : READ '(' ID ')' {$$ = makeReadNode(makeVarNode($3));};
+instmt : READ '(' ID ')' {$$ = makeReadNode(makeVarNode($3));}
+	| READ '(' ID '[' expr ']' ')' {$$ = makeReadNode(makeArrayNode($3, $5));}
+	| READ '(' ID '[' expr ']' '[' expr ']' ')' {$$ = makeReadNode(make2DArrayNode($3, $5, $8));}
+	;
 
 outstmt : WRITE '(' expr ')' {$$ = makeWriteNode($3);};
 
-asgstmt : ID ASSIGN expr {$$ = makeOperatorNode('=', makeVarNode($1), $3);};
+asgstmt : ID ASSIGN expr {$$ = makeOperatorNode('=', makeVarNode($1), $3);}
+	| ID '[' expr ']' ASSIGN expr {$$ = makeOperatorNode('=',makeArrayNode($1,$3),$6);}
+	| ID '[' expr ']' '[' expr ']' ASSIGN expr {$$ = makeOperatorNode('=',make2DArrayNode($1,$3, $6),$9);}
+	;
 
 reun : REPEAT slist UNTIL '(' expr ')' {$$ = makeRepeatNode($2, $5);};
 
@@ -110,9 +120,10 @@ expr : expr PLUS expr {$$ = makeOperatorNode('+',$1, $3);}
 	| expr MUL expr {$$ = makeOperatorNode('*',$1, $3);}
 	| expr MINUS expr {$$ = makeOperatorNode('-',$1, $3);}
 	| expr DIV expr {$$ = makeOperatorNode('/',$1, $3);}
+	| expr MOD expr {$$ = makeOperatorNode('%', $1, $3);}
 	| '(' expr ')' {$$ = $2;}
 	| ID { $$ = makeVarNode($1);}
-	| NUM { $$ = $1;}
+	| NUM { $$ = makeConstantNode($1);}
 	| expr EQ expr {$$ = makeCondNode("==", $1, $3);}
 	| expr NE expr {$$ = makeCondNode("!=", $1, $3);}
 	| expr LT expr {$$ = makeCondNode("<", $1, $3);}
@@ -120,6 +131,8 @@ expr : expr PLUS expr {$$ = makeOperatorNode('+',$1, $3);}
 	| expr LE expr {$$ = makeCondNode("<=", $1, $3);}
 	| expr GE expr {$$ = makeCondNode(">=", $1, $3);}
 	| STRING {$$ = makeStringNode($1);}
+	| ID '[' expr ']' {$$ = makeArrayNode($1, $3);}
+	| ID '[' expr ']' '[' expr ']' {$$ = make2DArrayNode($1, $3, $6);}
 	;
 
 %%

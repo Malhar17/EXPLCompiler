@@ -73,11 +73,12 @@ extern int yydebug;
     NE = 283,
     REPEAT = 284,
     UNTIL = 285,
-    DECL = 286,
-    ENDDECL = 287,
-    INT = 288,
-    STR = 289,
-    STRING = 290
+    MOD = 286,
+    DECL = 287,
+    ENDDECL = 288,
+    INT = 289,
+    STR = 290,
+    STRING = 291
   };
 #endif
 /* Tokens.  */
@@ -109,11 +110,12 @@ extern int yydebug;
 #define NE 283
 #define REPEAT 284
 #define UNTIL 285
-#define DECL 286
-#define ENDDECL 287
-#define INT 288
-#define STR 289
-#define STRING 290
+#define MOD 286
+#define DECL 287
+#define ENDDECL 288
+#define INT 289
+#define STR 290
+#define STRING 291
 
 /* Value type.  */
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
@@ -127,7 +129,7 @@ union YYSTYPE
 	struct varList *varNameList;
 	char *string;
 
-#line 131 "y.tab.h" /* yacc.c:1909  */
+#line 133 "y.tab.h" /* yacc.c:1909  */
 };
 
 typedef union YYSTYPE YYSTYPE;

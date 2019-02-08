@@ -1,13 +1,14 @@
 decl
-	int sum, num;	
+	int sum, num[5], i;	
 	str mesg;
 enddecl
 begin
-read(num);
+i = 0;
 sum = 0;
-while (num != 0) do
-	sum = sum + num;
-	read(num);
+while (i < 5) do
+	read(num[i]);
+	sum = sum + num[i];	
+	i = i + 1;
 endwhile;
 write("sum is:");
 write(sum);
