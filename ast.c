@@ -778,6 +778,7 @@ int codeGen(struct tnode *t){
             fprintf(fp, "POP R0\n");
             fprintf(fp, "POP R0\n");
             freereg();
+            freereg();
             return 0;
         }
 

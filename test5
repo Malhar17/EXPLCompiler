@@ -1,0 +1,54 @@
+decl
+ int fun(int x, int y);
+enddecl
+
+int fun(int x, int y)
+{
+ decl
+ int a;
+ enddecl
+ begin
+  if(y == 0) then 
+    write("x");
+    write(x);
+    write("y");
+    write(y);
+    write("ret");
+    write(x);
+    return x;
+  endif;
+  if(x == 0) then
+    write("x");
+    write(x);
+    write("y");
+    write(y);
+    write("ret");
+    write(y);
+    return y;
+  endif;
+    write("x");
+    write(x);
+    write("y");
+    write(y);
+    write("ret");
+    a = fun(fun(x-1,y),y-1);
+    write(a);
+    return a;
+ end
+}
+
+int main()
+{
+ decl
+  int a, b, c;
+ enddecl
+
+ begin
+  read(a);
+  read(b);
+  c = fun(a,b);
+  write(c);
+
+  return 0;
+ end
+}
