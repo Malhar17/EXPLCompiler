@@ -78,7 +78,11 @@ extern int yydebug;
     ENDDECL = 288,
     INT = 289,
     STR = 290,
-    STRING = 291
+    STRING = 291,
+    MAIN = 292,
+    RETURN = 293,
+    AND = 294,
+    OR = 295
   };
 #endif
 /* Tokens.  */
@@ -116,20 +120,25 @@ extern int yydebug;
 #define INT 289
 #define STR 290
 #define STRING 291
+#define MAIN 292
+#define RETURN 293
+#define AND 294
+#define OR 295
 
 /* Value type.  */
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 
 union YYSTYPE
 {
-#line 21 "ast.y" /* yacc.c:1909  */
+#line 25 "ast.y" /* yacc.c:1909  */
 
 	struct tnode *yys;	
 	int integer;
 	struct varList *varNameList;
 	char *string;
+	struct argumentList *argList;
 
-#line 133 "y.tab.h" /* yacc.c:1909  */
+#line 142 "y.tab.h" /* yacc.c:1909  */
 };
 
 typedef union YYSTYPE YYSTYPE;

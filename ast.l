@@ -6,12 +6,12 @@
 	YYSTYPE yylval;
 	int linenumber = 1;
 	int charnumber = 1;
+	char *var;
 	char* stringcopy(char *b, int n);
 %}
 
 %%
 
-[0-9]+	{yylval.integer = atoi(yytext); charnumber += yyleng; return NUM;}
 "read" {printf("Read\n");charnumber += yyleng;return READ;}
 "write" {printf("Write\n");charnumber += yyleng;return WRITE;}
 "begin" {charnumber += yyleng;return START;}
@@ -31,19 +31,24 @@
 "enddecl" {charnumber += yyleng;return ENDDECL;}
 "int" {charnumber += yyleng;return INT;}
 "str" {charnumber += yyleng;return STR;}
-"==" {charnumber += yyleng;return EQ;}
-"!=" {charnumber += yyleng;return NE;}
-"<" {charnumber += yyleng;return LT;}
-">" {charnumber += yyleng;return GT;}
-"<=" {charnumber += yyleng;return LE;}
-">=" {charnumber += yyleng;return GE;}
+"main" {return MAIN;}
+"return" {return RETURN;}
 "+"	{charnumber += yyleng;return PLUS;}
 "-"	{charnumber += yyleng;return MINUS;}
 "*"	{charnumber += yyleng;return MUL;}
 "/"	{charnumber += yyleng;return DIV;}
 "%" {charnumber += yyleng;return MOD;}
 "=" {charnumber += yyleng;return ASSIGN;}
+"||" {charnumber += yyleng; return OR;}
+"&&" {charnumber += yyleng; return AND;}
+"==" {charnumber += yyleng;return EQ;}
+"!=" {charnumber += yyleng;return NE;}
+"<" {charnumber += yyleng;return LT;}
+">" {charnumber += yyleng;return GT;}
+"<=" {charnumber += yyleng;return LE;}
+">=" {charnumber += yyleng;return GE;}
 ";" {charnumber += yyleng;return *yytext;}
+[{}] {charnumber +=yyleng; return *yytext;}
 "["	{charnumber += yyleng;return *yytext;}
 "]"	{charnumber += yyleng;return *yytext;}
 "\n" {linenumber++; charnumber = 1;}
@@ -51,8 +56,9 @@
 " " {charnumber += yyleng;}
 "," {charnumber += yyleng; return *yytext;}
 "\t" {charnumber += yyleng;}
-"\"".*"\"" {char *var = stringcopy(yytext, yyleng);charnumber += yyleng;yylval.string = var; return STRING;}
-[a-z][a-z|0-9]* {char *var = stringcopy(yytext, yyleng);printf("%s\n",var);charnumber += yyleng;yylval.string = var; return ID;}
+[0-9]+	{var = stringcopy(yytext, yyleng);yylval.integer = atoi(var); printf("%d",atoi(var)); charnumber += yyleng; return NUM;}
+[a-zA-Z][a-zA-Z|0-9]* {char *var = stringcopy(yytext, yyleng);printf("lex %s\n",var);charnumber += yyleng;yylval.string = var; return ID;}
+"\"".*"\"" {var = stringcopy(yytext, yyleng);charnumber += yyleng;yylval.string = var; return STRING;}
 .	{printf("%d.%d unknown character\n", linenumber, charnumber);exit(1);}
 
 %%

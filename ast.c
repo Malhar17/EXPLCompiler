@@ -1,3 +1,21 @@
+struct argumentList* makeArgList(int type, char * name)
+{
+    struct argumentList *x = (struct argumentList*)malloc(sizeof(struct argumentList));
+    x->type = type;
+    x->name = name;
+    x->next = NULL;
+    return x;
+}
+
+struct argumentList* addArgList(struct argumentList *x, struct argumentList *p)
+{
+    struct argumentList *q = x;
+    while(q->next != NULL)
+        q = q->next;
+    q->next = p;
+    return x;
+}
+
 struct varList* makeVarList(char *name, int size, int rowsize)
 {
     struct varList *x = (struct varList*)malloc(sizeof(struct varList));
@@ -5,17 +23,22 @@ struct varList* makeVarList(char *name, int size, int rowsize)
     x->next = NULL;
     x->size = size;
     x->rowsize = size;
+    x->argList = NULL;
     return x;
 }
 
-struct varList* addVarList(struct varList *p, char *name, int size, int rowsize)
+struct varList* addVarList(struct varList *p, struct varList *q)
 {
-    struct varList* q = (struct varList*)malloc(sizeof(struct varList));
-    q->name = name;
     q->next = p;
-    q->size = size;
-    q->rowsize = rowsize;
     return q;
+}
+
+struct varList* addFunc(char *name, struct argumentList* p)
+{
+    struct varList* x = (struct varList*)malloc(sizeof(struct varList));
+    x->name = name;
+    x->argList = p;
+    return x;
 }
 
 struct Gsymbol* lookUp(char *name)
@@ -37,7 +60,14 @@ int getBinding(int size)
     return temp;
 }
 
-void install(char *name, int type, int size, int rowsize)
+int getFLabel()
+{
+    int temp = flabel;
+    flabel++;
+    return temp;
+}
+
+void install(char *name, int type, int size, int rowsize, struct argumentList *p)
 {
     if(lookUp(name) != NULL)
     {
@@ -47,6 +77,22 @@ void install(char *name, int type, int size, int rowsize)
     struct Gsymbol *x = (struct Gsymbol*)malloc(sizeof(struct Gsymbol));
     x->name = name;
     x->type = type;
+    if(size == 0)
+    {
+        x->flabel = getFLabel();
+        if(strcmp("main", name)==0)
+            x->flabel = 0;
+        x->paramlist = p;
+        int b = -3;
+        while(p != NULL)
+        {
+            Linstall(p->name, p->type, b);
+            b--;
+            p = p->next;
+        }
+        x->Lsym = Lsym;
+    }
+    else x->flabel = -1;
     x->size = size;
     x->rowsize = rowsize;
     x->binding = getBinding(size*rowsize);
@@ -54,19 +100,135 @@ void install(char *name, int type, int size, int rowsize)
     symTable = x;
 }
 
+void funcLookUp(int type, char *name, struct argumentList *p)
+{
+    struct Gsymbol *x = lookUp(name);
+    if(x == NULL)
+    {
+        printf("%s not declared\n", name);
+        exit(1);
+    }
+    if(x->type != type)
+    {
+        printf("%s function return type mismatch\n", name);
+        exit(1);
+    }
+    struct argumentList *q = x->paramlist;
+    while(q != NULL && p != NULL)
+    {
+        if(q->type != p->type || strcmp(q->name, p->name) != 0)
+        {
+            printf("In %s, argument mismatch\n", name);
+            exit(1);
+        }
+        q = q->next;
+        p = p->next;
+    }
+    if(q != NULL || p != NULL)
+    {
+        printf("In %s, arguments in conflict with function definition\n", name);
+        exit(1);
+    }
+}
+
+struct varList* makeLVarList(char *name)
+{
+    struct varList *x = (struct varList*)malloc(sizeof(struct varList));
+    x->name = name;
+    x->next = NULL;
+    return x;
+}
+
+struct varList* addLVarList(struct varList *p, char *name)
+{
+    struct varList *x = (struct varList*)malloc(sizeof(struct varList));
+    x->name = name;
+    x->next = p;
+    return x;
+}
+
+
+struct Lsymbol* LlookUp(char *name)
+{
+    printf("LlookUp\n");
+    struct Lsymbol *x = Lsym;
+    while(x != NULL)
+    {
+        if(strcmp(x->name, name) == 0)
+            return x;
+        x = x->next;
+    }
+    printf("hi\n");
+    return NULL;
+}
+
+void Linstall(char *name, int type, int binding)
+{
+    if(LlookUp(name) != NULL)
+    {
+        printf("%s declared again\n", name);
+        exit(1);
+    }
+    struct Lsymbol *x = (struct Lsymbol*)malloc(sizeof(struct Lsymbol));
+    x->name = name;
+    x->type = type;
+    x->binding = binding;
+    x->next = Lsym;
+    Lsym = x;
+}
+
+void parameterCheck(struct argumentList *x, struct tnode *t)
+{
+    if(x == NULL && t == NULL)
+        return;
+    if((x == NULL && t != NULL) || (x != NULL && t == NULL))
+    {
+        printf("parameter missing in function call\n");
+        exit(1);
+    }
+    if(x->type != (t->right)->type)
+    {
+        printf("type mismatchin function call\n");
+        exit(1);
+    }
+    parameterCheck(x->next,t->left);
+}
+
+
 void printSymTable()
 {
     struct Gsymbol *x = symTable;
-    printf("name\ttype\tsize\tbinding\n");
+    printf("The Global Symbol Table:\n");
+    printf("name\ttype\tsize\trowsize\tbinding\tparamlist\n");
     while(x != NULL)
     {
-        printf("%s\t%d\t%d\t%d\t%d\n",x->name,x->type,x->size,x->rowsize,x->binding);
+        printf("%s\t%d\t%d\t%d\t%d\t",x->name,x->type,x->size,x->rowsize,x->binding);
+        struct argumentList *p = x->paramlist;
+        while(p != NULL)
+        {
+            printf("%d %s, ",p->type, p->name);
+            p = p->next;
+        }
+        printf("\n");
+        x = x->next;
+    }
+}
+
+void printLocalSym()
+{
+    struct Lsymbol *x = Lsym;
+    printf("The Local Symbol Table:\n");
+    printf("name\ttype\tbinding\n");
+    while(x != NULL)
+    {
+        printf("%s\t%d\t%d\t",x->name,x->type,x->binding);
+        printf("\n");
         x = x->next;
     }
 }
 
 struct tnode* makeConstantNode(int n){
-//    printf("Const %d\n", n );
+    printf("Const %d\n", n );
     struct tnode *t;
     t = (struct tnode*)malloc(sizeof(struct tnode));
     t->type = inttype;
@@ -80,7 +242,7 @@ struct tnode* makeConstantNode(int n){
 }
 
 struct tnode* makeStringNode(char *c){
-//    printf("String %s\n", c );
+    printf("String %s\n", c );
     struct tnode *t;
     t = (struct tnode*)malloc(sizeof(struct tnode));
     t->type = strtype;
@@ -93,27 +255,31 @@ struct tnode* makeStringNode(char *c){
 }
 
 struct tnode* makeVarNode(char *c){
-//    printf("Var %s\n", c );
-    struct Gsymbol *x = (struct Gsymbol*)malloc(sizeof(struct Gsymbol));
-    x = lookUp(c);
-    if(x == NULL)
+    printf("Var %s\n", c );
+    struct Gsymbol *x = lookUp(c);
+    struct Lsymbol *y = LlookUp(c);
+    if(x == NULL && y == NULL)
     {
         printf("%s Undeclared\n",c);
         exit(1);
     }
     struct tnode *t;
     t = (struct tnode*)malloc(sizeof(struct tnode));
-    t->type = x->type;
+    if(y != NULL)
+        t->type = y->type;
+    else t->type = x->type;
     t->nodetype = LF;
     t->varname = c;
     t->Gentry = x;
+    t->Lentry = y;
     t->left = NULL;
     t->right = NULL;
+    printf("hi\n");
     return t;
 }
 
 struct tnode* makeArrayNode(char *c, struct tnode *l){
-//    printf("Var %s\n", c );
+    printf("Var %s\n", c );
     struct Gsymbol *x = (struct Gsymbol*)malloc(sizeof(struct Gsymbol));
     x = lookUp(c);
     if(x == NULL)
@@ -138,7 +304,7 @@ struct tnode* makeArrayNode(char *c, struct tnode *l){
 }
 
 struct tnode* make2DArrayNode(char *c, struct tnode *l, struct tnode *r){
-//    printf("Var %s\n", c );
+    printf("Var %s\n", c );
     struct Gsymbol *x = (struct Gsymbol*)malloc(sizeof(struct Gsymbol));
     x = lookUp(c);
     if(x == NULL)
@@ -163,7 +329,7 @@ struct tnode* make2DArrayNode(char *c, struct tnode *l, struct tnode *r){
 }
 
 struct tnode* makeOperatorNode(char c,struct tnode *l,struct tnode *r){
-//    printf("OP %c\n", c );
+    printf("OP %c\n", c );
     if(l->type != r->type)
     {
         printf("OP Type mismatch\n");
@@ -182,9 +348,10 @@ struct tnode* makeOperatorNode(char c,struct tnode *l,struct tnode *r){
 
 
 struct tnode* makeReadNode(struct tnode *l){
-//    printf("RD %s\n", l->varname );
+    printf("RD %s\n", l->varname );
     struct tnode *t;
     t = (struct tnode*)malloc(sizeof(struct tnode));
+    t->type = voidtype;
     t->nodetype = RD;
     t->left = l;
     t->right = NULL;
@@ -193,7 +360,7 @@ struct tnode* makeReadNode(struct tnode *l){
 }
 
 struct tnode* makeWriteNode(struct tnode *l){
-//    printf("WT %s\n", l->varname );
+    printf("WT %s\n", l->varname );
     if(l->type != inttype && l->type != strtype)
     {
         printf("WT %s Type mismatch\n",l->varname);
@@ -202,6 +369,7 @@ struct tnode* makeWriteNode(struct tnode *l){
     struct tnode *t;
     t = (struct tnode*)malloc(sizeof(struct tnode));
     t->nodetype = WT;
+    t->type = voidtype;
     t->left = l;
     t->right = NULL;
     t->varname = NULL;
@@ -212,6 +380,7 @@ struct tnode* makeConnectorNode(struct tnode *l, struct tnode *r){
     struct tnode *t;
     t = (struct tnode*)malloc(sizeof(struct tnode));
     t->nodetype = CNT;
+    t->type = voidtype;
     t->left = l;
     t->right = r;
     t->varname = NULL;
@@ -228,9 +397,11 @@ struct tnode* makeIfElseNode(struct tnode *l, struct tnode *m, struct tnode *r)
     struct tnode *t;
     t = (struct tnode*)malloc(sizeof(struct tnode));
     t->nodetype = IFEL;
+    t->type = voidtype;
     struct tnode *e;
     e = (struct tnode*)malloc(sizeof(struct tnode));
     e->nodetype = CNT;
+    e->type = voidtype;
     e->left = m;
     e->right = r;
     t->left = l;
@@ -248,6 +419,7 @@ struct tnode* makeIfNode(struct tnode *l, struct tnode *r)
     struct tnode *t;
     t = (struct tnode*)malloc(sizeof(struct tnode));
     t->nodetype = IFST;
+    t->type = voidtype;
     t->left = l;
     t->right = r;
     return t;
@@ -263,6 +435,7 @@ struct tnode* makeWhileNode(struct tnode *l, struct tnode *r)
     struct tnode *t;
     t = (struct tnode*)malloc(sizeof(struct tnode));
     t->nodetype = WHILEDO;
+    t->type = voidtype;
     t->left = l;
     t->right = r;
     return t;   
@@ -278,6 +451,7 @@ struct tnode* makeRepeatNode(struct tnode *l, struct tnode *r)
     struct tnode *t;
     t = (struct tnode*)malloc(sizeof(struct tnode));
     t->nodetype = REPEATTUNTIL;
+    t->type = voidtype;
     t->left = l;
     t->right = r;
     return t;   
@@ -293,6 +467,7 @@ struct tnode* makeDoWhileNode(struct tnode *l, struct tnode *r)
     struct tnode *t;
     t = (struct tnode*)malloc(sizeof(struct tnode));
     t->nodetype = DOWHILE;
+    t->type = voidtype;
     t->left = l;
     t->right = r;
     return t;   
@@ -300,6 +475,7 @@ struct tnode* makeDoWhileNode(struct tnode *l, struct tnode *r)
 
 struct tnode* makeCondNode(char *c, struct tnode *l, struct tnode *r)
 {
+    printf("COND %s\n",c);
     if(l->type != inttype || r->type != inttype)
     {
         printf("Type mismatch\n");
@@ -319,7 +495,89 @@ struct tnode* makeJmpNode(int x)
 {
     struct tnode *t = (struct tnode*)malloc(sizeof(struct tnode));
     t->nodetype = x;
+    t->type = voidtype;
     t->left  = t->right = NULL;
+    return t;
+}
+
+struct tnode* makeFuncDefNode(int type, char *name, struct tnode *l)
+{
+    struct Gsymbol *x = lookUp(name);
+    if(x == NULL)
+    {
+        printf("%s not defined\n",name);
+        exit(1);
+    }
+    struct tnode *t = (struct tnode*)malloc(sizeof(struct tnode));
+    t->val = Lbinding-1;
+    t->nodetype = FTD;
+    t->type = x->type;
+    t->left = l;
+    t->right = NULL;
+    t->Gentry = x;
+    t->Lentry = Lsym;
+    return t;
+}
+
+struct tnode* makeFuncCallNode(char *name, struct tnode *l)
+{
+    struct Gsymbol *x = lookUp(name);
+    if(x == NULL)
+    {
+        printf("%s not defined\n",name);
+        exit(1);
+    }
+    parameterCheck(x->paramlist, l);
+    struct tnode *t = (struct tnode*)malloc(sizeof(struct tnode));
+    t->nodetype = FTC;
+    t->type = x->type;
+    t->left = l;
+    t->right = NULL;
+    t->Gentry = x;
+    return t;
+}
+
+struct tnode* makeReturnNode(struct tnode *l)
+{
+    if(l->type != currFType)
+    {
+        printf("return type improper\n");
+        exit(1);
+    }
+    struct tnode *t = (struct tnode*)malloc(sizeof(struct tnode));
+    t->nodetype = RET;
+    t->val = Lbinding-1;
+    t->left = l;
+    return t;
+}
+
+struct tnode* makeOrNode(struct tnode *l, struct tnode *r)
+{
+    if(l->type != booltype || r->type != booltype)
+    {
+        printf("type mismatch in ||\n");
+        exit(1);
+    }
+    struct tnode *t = (struct tnode*)malloc(sizeof(struct tnode));
+    t->type = booltype;
+    t->nodetype = OR_;
+    t->left = l;
+    t->right = r;
+    return t;
+}
+
+struct tnode* makeAndNode(struct tnode *l, struct tnode *r)
+{
+    if(l->type != booltype || r->type != booltype)
+    {
+        printf("type mismatch in &&\n");
+        exit(1);
+    }
+    struct tnode *t = (struct tnode*)malloc(sizeof(struct tnode));
+    t->type = booltype;
+    t->nodetype = AND_;
+    t->left = l;
+    t->right = r;
     return t;
 }
 
@@ -344,6 +602,8 @@ void freereg()
 }
 
 int codeGen(struct tnode *t){
+    if(t == NULL)
+        return -1;
     switch(t->nodetype)
     {
         case LF:
@@ -356,9 +616,15 @@ int codeGen(struct tnode *t){
             }
             else
             {
-                if(t->Gentry == NULL)
+                if(t->Gentry == NULL && t->Lentry == NULL)
                 {
                     fprintf(fp, "MOV R%d, %s\n",temp, t->varname);
+                }
+                else if(t->Lentry != NULL)
+                {
+                    fprintf(fp, "MOV R%d, BP\n", temp);
+                    fprintf(fp, "ADD R%d, %d\n", temp, (t->Lentry)->binding);
+                    fprintf(fp, "MOV R%d, [R%d]\n", temp, temp);
                 }
                 else
                 {
@@ -404,8 +670,19 @@ int codeGen(struct tnode *t){
                 {   r = codeGen(t->right);
                     if((t->left)->nodetype == LF)
                     {
-                        int st = ((t->left)->Gentry)->binding;
-                        fprintf(fp, "MOV [%d], R%d\n", st, r);
+                        if((t->left)->Lentry != NULL)
+                        {
+                            int temp = getreg();
+                            fprintf(fp, "MOV R%d, BP\n", temp);
+                            fprintf(fp, "ADD R%d, %d\n", temp, ((t->left)->Lentry)->binding);
+                            fprintf(fp, "MOV [R%d], R%d\n", temp, r);
+                            freereg();
+                        }
+                        else
+                        {
+                            int st = ((t->left)->Gentry)->binding;
+                            fprintf(fp, "MOV [%d], R%d\n", st, r);
+                        }
                     }
                     else if((t->left)->nodetype == ARRAY)
                     {
@@ -438,8 +715,17 @@ int codeGen(struct tnode *t){
             fprintf(fp, "PUSH R%d\n", temp);
             if((t->left)->nodetype == LF)
             {
-                int st = ((t->left)->Gentry)->binding;
-                fprintf(fp, "MOV R%d, %d\n", temp, st);
+                if((t->left)->Lentry != NULL)
+                {
+                    fprintf(fp, "MOV R%d, BP\n", temp);
+                    fprintf(fp, "ADD R%d, %d\n", temp, ((t->left)->Lentry)->binding);
+                }
+                else
+                {
+                    int st = ((t->left)->Gentry)->binding;
+                    fprintf(fp, "MOV R%d, %d\n", temp, st);
+                }
+                
             }
             else if((t->left)->nodetype == ARRAY)
             {
@@ -633,6 +919,103 @@ int codeGen(struct tnode *t){
             return l;
         }
 
+        case FTC:
+        {
+            int x = reg;
+            for(int i=x;i>=0;i--)
+                fprintf(fp, "PUSH R%d\n", i);
+            struct tnode *p = t->left;
+            int noArguments = 0;
+            while(p != NULL)
+            {
+                int k = codeGen(p->right);
+                fprintf(fp, "PUSH R%d\n", k);
+                p = p->left;
+                noArguments++;
+            }
+            fprintf(fp, "ADD SP, 1\n");
+            fprintf(fp, "CALL F%d\n", (t->Gentry)->flabel);
+            int l = getreg();
+            fprintf(fp, "POP R%d\n", l);
+            fprintf(fp, "SUB SP, %d\n", noArguments);
+            for(int i=0;i<=x;i++)
+                fprintf(fp, "POP R%d\n", i);
+            return l;
+        }
+
+        case FTD:
+        {
+            int x = reg;
+            reg = 0;
+            fprintf(fp, "F%d:\n", (t->Gentry)->flabel);
+            fprintf(fp, "PUSH BP\n");
+            fprintf(fp, "MOV BP, SP\n");
+            fprintf(fp, "ADD SP, %d\n", t->val);
+            codeGen(t->left);
+            freereg();
+            reg = x;
+            break;
+        }
+
+        case RET:
+        {
+            int l = codeGen(t->left);
+            fprintf(fp, "SUB SP, %d\n", t->val);
+            int k = getreg();
+            fprintf(fp, "MOV R%d, BP\n", k);
+            fprintf(fp, "SUB R%d, 2\n", k);
+            fprintf(fp, "MOV [R%d], R%d\n", k, l);
+            freereg();
+            fprintf(fp, "POP BP\n");
+            fprintf(fp, "RET\n");
+            break;
+        }
+
+        case AND_:
+        {
+            int label1 = getLabel();
+            int label2 = getLabel();
+            int label3 = getLabel();
+            int k = getreg();
+            int l = codeGen(t->left);
+            fprintf(fp, "JNZ R%d, L%d\n", l, label1);
+            fprintf(fp, "MOV R%d, 0\n", k);
+            fprintf(fp, "JMP L%d\n", label3);
+            fprintf(fp, "L%d:\n", label1);
+            int r = codeGen(t->left);
+            fprintf(fp, "JNZ R%d, L%d\n", r, label2);
+            fprintf(fp, "MOV R%d, 0\n", k);
+            fprintf(fp, "JMP L%d\n", label3);
+            fprintf(fp, "L%d:\n", label2);
+            fprintf(fp, "MOV R%d, 1\n", k);
+            fprintf(fp, "L%d:\n", label3);
+            freereg();
+            freereg();
+            return k;
+        }
+
+        case OR_:
+        {
+            int label1 = getLabel();
+            int label2 = getLabel();
+            int label3 = getLabel();
+            int k = getreg();
+            int l = codeGen(t->left);
+            fprintf(fp, "JZ R%d, L%d\n", l, label1);
+            fprintf(fp, "MOV R%d, 1\n", k);
+            fprintf(fp, "JMP L%d\n", label3);
+            fprintf(fp, "L%d:\n", label1);
+            int r = codeGen(t->left);
+            fprintf(fp, "JZ R%d, L%d\n", r, label2);
+            fprintf(fp, "MOV R%d, 1\n", k);
+            fprintf(fp, "JMP L%d\n", label3);
+            fprintf(fp, "L%d:\n", label2);
+            fprintf(fp, "MOV R%d, 0\n", k);
+            fprintf(fp, "L%d:\n", label3);
+            freereg();
+            freereg();
+            return k;         
+        }
     }
     return 0;
 }

@@ -5,9 +5,13 @@
 	FILE *fp;
 	int reg = 0;
 	int label = 0;
+	int flabel = 1;
+	int currFType = -1;
 	int whilelabel = -1;
 	int bindingAddress = 4096;
+	int Lbinding = 1;
 	struct Gsymbol *symTable = NULL;
+	struct Lsymbol *Lsym = NULL;
 	extern FILE *yyin;
 	
 	#include "ast.h"
@@ -23,59 +27,135 @@
 	int integer;
 	struct varList *varNameList;
 	char *string;
+	struct argumentList *argList;
 };
 
 %token NUM PLUS MINUS MUL DIV START END WRITE READ ID ASSIGN IF THEN ELSE ENDIF WHILE DO ENDWHILE BREAK CONT LT LE GT GE EQ NE REPEAT UNTIL MOD
-%token DECL ENDDECL INT STR STRING
+%token DECL ENDDECL INT STR STRING MAIN RETURN AND OR
 
+%left OR AND
 %left EQ NE LE LT GE GT
 %left PLUS MINUS
 %left MUL DIV MOD
 
-%type <yys> expr WRITE READ ASSIGN stmt slist asgstmt instmt outstmt wedo iets ietse dowe reun
-%type <integer> type NUM
-%type <varNameList> varlist
+%type <yys> expr WRITE READ ASSIGN stmt slist asgstmt instmt outstmt wedo iets ietse dowe reun Arglist Body ret Fdef FDefBlock MainBlock Program
+%type <integer> Type NUM
+%type <varNameList> Gid GidList IdList 
 %type <string> ID STRING
+%type <argList> Param ParamList fname mains
 
 %%
 
-program : declarations START slist END {fprintf(fp, "0\n2056\n0\n0\n0\n0\n0\n0\nMOV SP, %d\n", getBinding(0));printf("codeGen starts\n");
-								codeGen($3);
-					fprintf(fp, "MOV R2, 10\nPUSH R2\nPUSH R2\nPUSH R2\nPUSH R2\nPUSH R2\nINT 10\nPOP R0\nPOP R1\nPOP R1\nPOP R1\nPOP R1");
-					return 0;
-					}
-	| declarations START END {fprintf(fp, "0\n2056\n0\n0\n0\n0\n0\n0\n");
-					fprintf(fp, "MOV R2, 10\nPUSH R2\nPUSH R2\nPUSH R2\nPUSH R2\nPUSH R2\nINT 10\nPOP R0\nPOP R1\nPOP R1\nPOP R1\nPOP R1");
-					}
+Program : GDeclBlock FDefBlock MainBlock {	$$ = makeConnectorNode($2, $3);
+											fprintf(fp, "0\n2056\n0\n0\n0\n0\n0\n0\nMOV SP, %d\n", getBinding(0));printf("codeGen starts\n");
+											fprintf(fp, "CALL F0\n");
+											fprintf(fp, "MOV R2, 10\nPUSH R2\nPUSH R2\nPUSH R2\nPUSH R2\nPUSH R2\nINT 10\nPOP R0\nPOP R1\nPOP R1\nPOP R1\nPOP R1\n");
+											codeGen($$);
+											return 0;
+										 }
+	| GDeclBlock MainBlock {fprintf(fp, "0\n2056\n0\n0\n0\n0\n0\n0\nMOV SP, %d\n", getBinding(0));printf("codeGen starts\n");
+							fprintf(fp, "CALL F0\n");
+							fprintf(fp, "MOV R2, 10\nPUSH R2\nPUSH R2\nPUSH R2\nPUSH R2\nPUSH R2\nINT 10\nPOP R0\nPOP R1\nPOP R1\nPOP R1\nPOP R1\n");
+							codeGen($2);
+							return 0;}
+	| MainBlock {fprintf(fp, "0\n2056\n0\n0\n0\n0\n0\n0\nMOV SP, %d\n", getBinding(0));printf("codeGen starts\n");
+							fprintf(fp, "CALL F0\n");
+							fprintf(fp, "MOV R2, 10\nPUSH R2\nPUSH R2\nPUSH R2\nPUSH R2\nPUSH R2\nINT 10\nPOP R0\nPOP R1\nPOP R1\nPOP R1\nPOP R1\n");
+							codeGen($1);
+							return 0;}
 	;
 
-declarations : DECL decllist ENDDECL {printSymTable();}
+GDeclBlock : DECL GdeclList ENDDECL {printSymTable();}
 	| DECL ENDDECL {}
 	;
 
-decllist : decllist decl {}
-	| decl {}
+GdeclList : GdeclList GDecl {} 
+	| GDecl {}
 	;
 
-decl : type varlist ';' {
-							while($2 != NULL)
-							{
-								install($2->name, $1, $2->size, $2->rowsize);
-								$2 = $2->next;
+GDecl : Type GidList ';' 	{
+								while($2 != NULL)
+								{
+									install($2->name, $1, $2->size, $2->rowsize, $2->argList);
+									$2 = $2->next;
+									Lsym = NULL;
+								}
 							}
-						} 
 	;
 
-type : INT { $$ = inttype;}
+GidList : GidList ',' Gid {$$ = addVarList($1, $3);}
+	| Gid {$$ = $1;}
+	; 
+
+Gid : ID {$$ = makeVarList($1, 1, 1);}
+	| ID '[' NUM ']' {$$ = makeVarList($1, $3, 1);}
+	| ID '(' ParamList ')' {$$ = addFunc($1, $3);}
+	| ID '(' ')' {$$ = addFunc($1, NULL);}
+	;
+
+
+FDefBlock : FDefBlock Fdef {$$ = makeConnectorNode($1, $2);}
+	| Fdef {$$ = $1;}
+	;
+
+Fdef : fname ParamList ')' '{' LdeclBlock Body '}'{
+															funcLookUp($1->type, $1->name, $2);
+															$$ = makeFuncDefNode($1->type, $1->name, $6);
+															currFType = -1;
+															Lsym = NULL;
+															Lbinding = 1;
+														}
+	; 
+
+fname : Type ID '(' {$$ = makeArgList($1, $2); currFType = $1; Lsym = (lookUp($2))->Lsym;};
+
+ParamList : ParamList ',' Param {$$ = addArgList($1, $3);}
+	| Param {$$ = $1;}
+	;
+
+Param : Type ID {$$ = makeArgList($1, $2);}
+	;
+
+Type : INT {$$ = inttype;}
 	| STR {$$ = strtype;}
 	;
 
-varlist : varlist ','  ID {$$ = addVarList($1, $3, 1, 1);}
-	| varlist ','  ID '[' NUM ']' {$$ = addVarList($1, $3, 1, $5);}
-	| varlist ','  ID '[' NUM ']' '[' NUM ']' {$$ = addVarList($1, $3, $5, $8);}
-	| ID {$$ = makeVarList($1, 1, 1);}
-	| ID '[' NUM ']' {$$ = makeVarList($1, 1, $3);}
-	| ID '[' NUM ']' '[' NUM ']' {$$ = makeVarList($1, $3, $6);}
+
+LdeclBlock : DECL LDecList ENDDECL {}
+	| DECL ENDDECL {}
+	;
+
+LDecList : LDecList LDecl {}
+	| LDecl {}
+	;
+
+LDecl : Type IdList ';' {
+							while($2 != NULL)
+								{
+									Linstall($2->name, $1, Lbinding);
+									Lbinding++;
+									$2 = $2->next;
+								}
+							printLocalSym();
+						}
+	; 
+
+IdList : IdList ',' ID {$$ = addLVarList($1, $3);}
+	| ID {$$ = makeLVarList($1);}
+	;
+
+MainBlock : mains ')' '{' LdeclBlock Body '}' {
+												$$ = makeFuncDefNode($1->type, $1->name, $5);
+												currFType = -1;
+												Lsym = NULL;
+												Lbinding = 1;
+											  }
+          ;
+
+mains : INT MAIN '(' {install("main", inttype, 0, 0, NULL); $$ = makeArgList(inttype, "main"); currFType = inttype; Lsym = NULL;};
+
+Body : START slist END {$$ = $2;}
+	| START END {$$ = NULL;}
 	;
 
 slist : slist stmt ';' {$$ = makeConnectorNode($1, $2);}
@@ -92,6 +172,7 @@ stmt : instmt {$$ = $1;}
 	| CONT {$$ = makeJmpNode(CONTST);}
 	| reun {$$ = $1;}
 	| dowe {$$ = $1;}
+	| ret {$$ = $1;}
 	;
 
 wedo : WHILE '(' expr ')' DO slist ENDWHILE {$$ = makeWhileNode($3, $6);};
@@ -116,6 +197,9 @@ reun : REPEAT slist UNTIL '(' expr ')' {$$ = makeRepeatNode($2, $5);};
 
 dowe : DO slist WHILE '(' expr ')' {$$ = makeDoWhileNode($2, $5);};
 
+ret : RETURN expr {$$ = makeReturnNode($2);}
+	;
+
 expr : expr PLUS expr {$$ = makeOperatorNode('+',$1, $3);}
 	| expr MUL expr {$$ = makeOperatorNode('*',$1, $3);}
 	| expr MINUS expr {$$ = makeOperatorNode('-',$1, $3);}
@@ -133,11 +217,19 @@ expr : expr PLUS expr {$$ = makeOperatorNode('+',$1, $3);}
 	| STRING {$$ = makeStringNode($1);}
 	| ID '[' expr ']' {$$ = makeArrayNode($1, $3);}
 	| ID '[' expr ']' '[' expr ']' {$$ = make2DArrayNode($1, $3, $6);}
+	| ID '(' ')' {$$ = makeFuncCallNode($1, NULL);}
+	| ID '(' Arglist ')' {$$ = makeFuncCallNode($1, $3);}
+	| expr OR expr {$$ = makeOrNode($1, $3);}
+	| expr AND expr {$$ = makeAndNode($1, $3);}
+	;
+
+Arglist : Arglist ',' expr {$$ = makeConnectorNode($1, $3);}
+	| expr {$$ = makeConnectorNode(NULL, $1);}
 	;
 
 %%
 
-yyerror(char const *s)
+int yyerror(char const *s)
 {
     printf("%s\n",s);
 }
