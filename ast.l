@@ -33,6 +33,12 @@
 "str" {charnumber += yyleng;return STR;}
 "main" {return MAIN;}
 "return" {return RETURN;}
+"type" {return TYPE;}
+"endtype" {return ENDTYPE;}
+"alloc" {return ALLOC;}
+"free" {return FREE;}
+"initialize" {return INITIALIZE;}
+"null" {return NIL;}
 "+"	{charnumber += yyleng;return PLUS;}
 "-"	{charnumber += yyleng;return MINUS;}
 "*"	{charnumber += yyleng;return MUL;}
@@ -54,11 +60,12 @@
 "\n" {linenumber++; charnumber = 1;}
 [()]	{charnumber += yyleng;return *yytext;}
 " " {charnumber += yyleng;}
+"." {charnumber += yyleng; return *yytext;}
 "," {charnumber += yyleng; return *yytext;}
 "\t" {charnumber += yyleng;}
 [0-9]+	{var = stringcopy(yytext, yyleng);yylval.integer = atoi(var); printf("%d",atoi(var)); charnumber += yyleng; return NUM;}
-[a-zA-Z][a-zA-Z|0-9]* {char *var = stringcopy(yytext, yyleng);printf("lex %s\n",var);charnumber += yyleng;yylval.string = var; return ID;}
-"\"".*"\"" {var = stringcopy(yytext, yyleng);charnumber += yyleng;yylval.string = var; return STRING;}
+[a-zA-Z][a-zA-Z|0-9]* {char *var = strdup(yytext);printf("lex %s\n",var);charnumber += yyleng;yylval.string = var; return ID;}
+"\"".*"\"" {var = strdup(yytext);charnumber += yyleng;yylval.string = var; return STRING;}
 .	{printf("%d.%d unknown character\n", linenumber, charnumber);exit(1);}
 
 %%

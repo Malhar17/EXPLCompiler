@@ -82,7 +82,13 @@ extern int yydebug;
     MAIN = 292,
     RETURN = 293,
     AND = 294,
-    OR = 295
+    OR = 295,
+    TYPE = 296,
+    ENDTYPE = 297,
+    ALLOC = 298,
+    INITIALIZE = 299,
+    FREE = 300,
+    NIL = 301
   };
 #endif
 /* Tokens.  */
@@ -124,21 +130,29 @@ extern int yydebug;
 #define RETURN 293
 #define AND 294
 #define OR 295
+#define TYPE 296
+#define ENDTYPE 297
+#define ALLOC 298
+#define INITIALIZE 299
+#define FREE 300
+#define NIL 301
 
 /* Value type.  */
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 
 union YYSTYPE
 {
-#line 25 "ast.y" /* yacc.c:1909  */
+#line 36 "ast.y" /* yacc.c:1909  */
 
 	struct tnode *yys;	
 	int integer;
 	struct varList *varNameList;
 	char *string;
 	struct argumentList *argList;
+	struct TypeTable *typeTable;
+	struct FieldList *fieldsList;
 
-#line 142 "y.tab.h" /* yacc.c:1909  */
+#line 156 "y.tab.h" /* yacc.c:1909  */
 };
 
 typedef union YYSTYPE YYSTYPE;

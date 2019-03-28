@@ -1,7 +1,3 @@
-#define voidtype 0
-#define inttype 1
-#define booltype 2
-#define strtype 3
 #define LF 0
 #define RD 1
 #define WT 2
@@ -21,18 +17,38 @@
 #define RET 16
 #define OR_ 17
 #define AND_ 18
+#define ALC 19
+#define FRE 20
+#define INTLZ 21
+#define NIL_ 22
+#define FLD 23
+
+struct TypeTable
+{
+	char *name; //Name of type
+	int size; //size of type
+	struct FieldList *fields; //fields in this type
+	struct TypeTable *next; //pointer to next type
+};
+
+struct FieldList
+{
+	char *name; //field name
+	int fieldIndex; //position of field in fieldlist
+	struct TypeTable *type; // type of field
+	struct FieldList *next; // pointer to next field in fieldList
+};
 
 struct Lsymbol{
 	char *name;	//name of the variable
-	int type;		//type of the variable:(Integer / String) 
+	struct TypeTable *type;		//type of the variable:(Integer / String) 
 	int binding;	//local binding of the variable
 	struct Lsymbol *next;	//points to the next Local Symbol Table entry
 };
 
-
 struct Gsymbol {
 	char* name;		// name of the variable
-	int type;		// type of the variable
+	struct TypeTable *type;		// type of the variable
 	int size;		// size of the type of the variable
 	int rowsize;	// size of each row (only for 2D array)
 	int binding;	// stores the static memory address allocated to the variable
@@ -45,7 +61,7 @@ struct Gsymbol {
 
 typedef struct tnode { 
 	int val;	// value of a number for NUM nodes.
-	int type;	//type of variable
+	struct TypeTable *type;	//type of variable
 	char* varname;	//name of a variable for ID nodes  
 	int nodetype;  // information about non-leaf nodes - read/write/connector/+/* etc.
 	struct Gsymbol *Gentry;
@@ -63,11 +79,11 @@ struct varList {
 
 struct argumentList {
 	char *name;
-	int type;
+	struct TypeTable *type;
 	struct argumentList *next;
 };
 //Create a node tnode*/
-//struct tnode* createTree(int val, int type, char* c, int nodetype, struct tnode *l, struct tnode *r);
+//struct tnode* createTree(int val, struct TypeTable *type, char* c, int nodetype, struct tnode *l, struct tnode *r);
 
 //constant node
 struct tnode* makeConstantNode(int n);
@@ -127,13 +143,13 @@ struct tnode* makeArrayNode(char *c, struct tnode *l);
 struct tnode* make2DArrayNode(char *c, struct tnode *l, struct tnode *r);
 
 //make fucntion definition node
-struct tnode* makeFuncDefNode(int type, char *name, struct tnode *l);
+struct tnode* makeFuncDefNode(struct TypeTable *type, char *name, struct tnode *l);
 
 //make function call node
 struct tnode* makeFuncCallNode(char *name, struct tnode *l);
 
 //local symbol table install function
-void Linstall(char *name, int type, int binding);
+void Linstall(char *name, struct TypeTable *type, int binding);
 
 //make AND node
 struct tnode* makeAndNode(struct tnode *l, struct tnode *r);
@@ -143,3 +159,18 @@ struct tnode* makeOrNode(struct tnode *l, struct tnode *r);
 
 //make return node
 struct tnode* makeReturnNode(struct tnode *l);
+
+//make field node
+struct tnode* makeFieldNode(struct tnode *l, char *name);
+
+//make null node 
+struct tnode* makeNullNode();
+
+//make free library function node
+struct tnode* makeFreeNode(struct tnode *l);
+
+//make initialize library function node
+struct tnode* makeInitializeNode();
+
+//make alloc library function node
+struct tnode* makeAllocNode();
