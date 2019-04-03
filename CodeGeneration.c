@@ -37,7 +37,7 @@ int codeGen(struct tnode *t){
     {
         case LF:
         {
-//            printf("LF %d\n", t->type );
+//            printf("LF \n");
             int temp = getreg();
             if(t->varname == NULL)
             {
@@ -390,7 +390,14 @@ int codeGen(struct tnode *t){
         {
             int x = reg;
             reg = 0;
-            fprintf(fp, "F%d:\n", (t->Gentry)->flabel);
+            if(t->Gentry != NULL)
+            {
+                fprintf(fp, "F%d:\n", (t->Gentry)->flabel);
+            }    
+            else
+            {
+                fprintf(fp, "F%d:\n", (t->Mentry)->flabel);
+            }
             fprintf(fp, "PUSH BP\n");
             fprintf(fp, "MOV BP, SP\n");
             fprintf(fp, "ADD SP, %d\n", t->val);
@@ -535,6 +542,39 @@ int codeGen(struct tnode *t){
             int l = codeGen(t->left);
             fprintf(fp, "ADD R%d, %d\n", l, t->val);
             fprintf(fp, "MOV R%d, [R%d]\n", l, l);
+            return l;
+        }
+
+        case SELF_:
+        {
+            int temp = getreg();
+            fprintf(fp, "MOV R%d, BP\n", temp);
+            fprintf(fp, "ADD R%d, %d\n", temp, (t->Lentry)->binding);
+            fprintf(fp, "MOV R%d, [R%d]\n", temp, temp);
+            return temp;
+        }
+
+        case FLFC:
+        {
+            int x = reg;
+            pushRegisters(x);
+            struct tnode *p = t->right;
+            int noArguments = 1;
+            int k = codeGen(t->left);
+            fprintf(fp, "PUSH R%d\n", k);
+            while(p != NULL)
+            {
+                k = codeGen(p->left);
+                fprintf(fp, "PUSH R%d\n", k);
+                p = p->right;
+                noArguments++;
+            }
+            fprintf(fp, "ADD SP, 1\n");
+            fprintf(fp, "CALL F%d\n", (t->Mentry)->flabel);
+            int l = getreg();
+            fprintf(fp, "POP R%d\n", l);
+            fprintf(fp, "SUB SP, %d\n", noArguments);
+            popRegisters(x);
             return l;
         }
     }

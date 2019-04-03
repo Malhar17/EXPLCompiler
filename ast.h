@@ -22,6 +22,11 @@
 #define INTLZ 21
 #define NIL_ 22
 #define FLD 23
+#define SELF_ 24
+#define NEW_ 25
+#define DEL_ 26
+#define FLFC 27
+
 
 struct TypeTable
 {
@@ -36,7 +41,31 @@ struct FieldList
 	char *name; //field name
 	int fieldIndex; //position of field in fieldlist
 	struct TypeTable *type; // type of field
+	struct ClassTable *ctype; //pointer to class contianing this field
 	struct FieldList *next; // pointer to next field in fieldList
+};
+
+struct ClassTable
+{
+	char *name;                           //name of the class
+	struct FieldList *memberField;        //pointer to Fieldlist 
+	struct MemberFuncList *vFunc;      //pointer to Member function list
+	struct ClassTable *parent;         //pointer to the parent's class table
+	int classIndex;                      //position of the class in the virtual function table
+	int fieldCount;                       //count of fields
+  	int methodCount;                      //count of methods
+	struct ClassTable *next;              //pointer to next class table entry
+};	
+
+struct MemberFuncList
+{
+ 	char *name;                      //name of the member function in the class
+	struct TypeTable *type;          //pointer to typetable
+	struct argumentList *paramlist;   //pointer to the head of the formal parameter list
+	int funcPosition;                //position of the function in the class table
+ 	int flabel;                      //A label for identifying the starting address of the function's code in the memory
+ 	struct Lsymbol *Lsym;
+	struct MemberFuncList *next;     //pointer to next Memberfunclist entry
 };
 
 struct Lsymbol{
@@ -49,6 +78,7 @@ struct Lsymbol{
 struct Gsymbol {
 	char* name;		// name of the variable
 	struct TypeTable *type;		// type of the variable
+	struct ClassTable *ctype;	//class of the variabe 
 	int size;		// size of the type of the variable
 	int rowsize;	// size of each row (only for 2D array)
 	int binding;	// stores the static memory address allocated to the variable
@@ -66,6 +96,8 @@ typedef struct tnode {
 	int nodetype;  // information about non-leaf nodes - read/write/connector/+/* etc.
 	struct Gsymbol *Gentry;
 	struct Lsymbol *Lentry;
+	struct ClassTable *Centry;
+	struct MemberFuncList *Mentry;
 	struct tnode *left,*right;	//left and right branches   
 }tnode;
 
@@ -174,3 +206,9 @@ struct tnode* makeInitializeNode();
 
 //make alloc library function node
 struct tnode* makeAllocNode();
+
+//type table lookup
+struct TypeTable* TlookUp(char *name);
+
+//print local symbol table
+void printLocalSym();

@@ -43,6 +43,8 @@ struct tnode* makeVarNode(char *c){
     t->varname = c;
     t->Gentry = x;
     t->Lentry = y;
+    if(x != NULL)
+        t->Centry = x->ctype;
     t->left = NULL;
     t->right = NULL;
     return t;
@@ -271,23 +273,46 @@ struct tnode* makeJmpNode(int x)
 }
 
 struct tnode* makeFuncDefNode(struct TypeTable *type, char *name, struct tnode *l)
-{
-    struct Gsymbol *x = lookUp(name);
-    if(x == NULL)
+{   
+    if(currClass == NULL)
     {
-        printf("%s not defined\n",name);
-        exit(1);
+        struct Gsymbol *x = lookUp(name);
+        if(x == NULL)
+        {
+            printf("%s not defined\n",name);
+            exit(1);
+        }
+        struct tnode *t = (struct tnode*)malloc(sizeof(struct tnode));
+        t->val = Lbinding-1;
+        t->nodetype = FTD;
+        t->type = type;
+        t->left = l;
+        t->right = NULL;
+        t->Gentry = x;
+        t->Lentry = Lsym;
+        printLocalSym();
+        return t;
     }
-    struct tnode *t = (struct tnode*)malloc(sizeof(struct tnode));
-    t->val = Lbinding-1;
-    t->nodetype = FTD;
-    t->type = x->type;
-    t->left = l;
-    t->right = NULL;
-    t->Gentry = x;
-    t->Lentry = Lsym;
-    printLocalSym();
-    return t;
+    else 
+    {
+        struct MemberFuncList *m = classMlookUp(currClass,name);
+        if(m == NULL)
+        {
+            printf("%s not defined\n",name);
+            exit(1);
+        }
+        struct tnode *t = (struct tnode*)malloc(sizeof(struct tnode));
+        t->val = Lbinding-1;
+        t->Mentry = m;
+        t->nodetype = FTD;
+        t->type = type;
+        t->Centry = currClass;
+        t->left = l;
+        t->right = NULL;
+        t->Lentry = Lsym;
+        printLocalSym();
+        return t;
+    }
 }
 
 struct tnode* makeFuncCallNode(char *name, struct tnode *l)
@@ -391,7 +416,15 @@ struct tnode* makeNullNode()
 
 struct tnode* makeFieldNode(struct tnode *l, char *name)
 {
-    struct FieldList *f = FLookUp(l->type,name);
+    struct FieldList *f;
+    if(l->type != NULL)
+    {   
+        f = FLookUp(l->type,name);
+    }
+    if(l->type == NULL && l->Centry != NULL)
+    {
+        f = classFlookUp(l->Centry, name);
+    }
     if(f == NULL)
     {
         printf("%s does not have %s field\n", l->varname, name);
@@ -401,8 +434,71 @@ struct tnode* makeFieldNode(struct tnode *l, char *name)
     t->varname = name;
     t->val = f->fieldIndex;
     t->type = f->type;
+    t->Centry = f->ctype;
     t->nodetype = FLD;
     t->left = l;
     t->right = NULL;
+    return t;
+}
+
+struct tnode* makeNewFunctionNode(char *name)
+{
+    struct ClassTable *c = ClookUp(name);
+    if(c == NULL)
+    {
+        printf("%s class not found\n", name);
+        exit(1);
+    }
+    struct tnode *t = (struct tnode*)malloc(sizeof(struct tnode));
+    t->varname = name;
+    t->nodetype = ALC;
+    t->Centry = c;
+    t->left = t->right = NULL;
+    return t;
+}
+
+struct tnode* makeDeleteNode(struct tnode *l)
+{
+    struct tnode *t = (struct tnode*)malloc(sizeof(struct tnode));
+    t->nodetype = FRE;
+    t->Centry = l->Centry;
+    t->left = l;
+    t->right = NULL;
+    return t;
+}
+
+struct tnode* makeFieldFucntionNode(struct tnode *l, char *name, struct tnode *r)
+{   
+    if(l->Centry == NULL)
+        printf("Centry of %s is null\n", l->varname);
+    struct MemberFuncList *m = classMlookUp(l->Centry, strdup(name));
+    if(m == NULL)
+    {
+        printf("%s function does not exist in %s class\n", name, (l->Centry)->name);
+        exit(1);
+    }
+    parameterCheck(m->paramlist, r);
+    struct tnode *t = (struct tnode*)malloc(sizeof(struct tnode));
+    t->left = l;
+    t->right = r;
+    t->nodetype = FLFC;
+    t->varname = name;
+    t->type = m->type;
+    t->Centry = l->Centry;
+    t->Mentry = m;
+    t->val = m->flabel;
+    return t;
+}
+
+struct tnode* makeSelfNode()
+{
+    struct tnode *t = (struct tnode*)malloc(sizeof(struct tnode));
+    t->nodetype = SELF_;
+    if(LlookUp("self") == NULL)
+        t->varname = "self";
+    t->Lentry = LlookUp("self");
+    t->type = NULL;
+    t->left = t->right = NULL;
+    t->Centry = currClass;
     return t;
 }

@@ -6,6 +6,9 @@
 	int reg = 0;
 	int label = 0;
 	int flabel = 1;
+	int clabel = 0;
+	int classField = 0;
+	int funcPosition = 0;
 	struct TypeTable *currFType = NULL;
 	int whilelabel = -1;
 	int bindingAddress = 4096;
@@ -13,6 +16,8 @@
 	struct Gsymbol *symTable = NULL;
 	struct Lsymbol *Lsym = NULL;
 	struct TypeTable *Ttable = NULL;
+	struct ClassTable *Ctable = NULL;
+	struct ClassTable *currClass = NULL;
 	int Tsize = 0;
 	extern FILE *yyin;
 	
@@ -41,39 +46,43 @@
 	struct argumentList *argList;
 	struct TypeTable *typeTable;
 	struct FieldList *fieldsList;
+	struct ClassType *classTable;
 };
 
 %token NUM PLUS MINUS MUL DIV START END WRITE READ ID ASSIGN IF THEN ELSE ENDIF WHILE DO ENDWHILE BREAK CONT LT LE GT GE EQ NE REPEAT UNTIL MOD
-%token DECL ENDDECL INT STR STRING MAIN RETURN AND OR TYPE ENDTYPE ALLOC INITIALIZE FREE NIL
+%token DECL ENDDECL INT STR STRING MAIN RETURN AND OR TYPE ENDTYPE ALLOC INITIALIZE FREE NIL CLASS ENDCLASS DELETE NEW SELF
 
 %left OR AND
 %left EQ NE LE LT GE GT
 %left PLUS MINUS
 %left MUL DIV MOD
 
-%type <yys> expr WRITE READ ASSIGN stmt slist asgstmt instmt outstmt wedo iets ietse dowe reun Arglist Body ret Fdef FDefBlock MainBlock Program field
+%type <yys> expr WRITE READ ASSIGN stmt slist asgstmt instmt outstmt wedo iets ietse dowe reun Arglist Body ret Fdef FDefBlock MainBlock Program
+%type <yys> field MethodDefs fieldFucntion ClassDef ClassDefBlock ClassDefList
 %type <integer> NUM
 %type <varNameList> Gid GidList IdList 
-%type <string> ID STRING
+%type <string> ID STRING TypeName
 %type <argList> Param ParamList fname mains
-%type <typeTable> TypeName tname
+%type <typeTable> tname
 %type <fieldsList> FieldDecl FieldDeclList
 
 %%
 
-Program : TypeDefBlock GDeclBlock FDefBlock MainBlock {	
-											$$ = makeConnectorNode($3, $4);
+Program : TypeDefBlock ClassDefBlock GDeclBlock FDefBlock MainBlock {
+											$$ = makeConnectorNode($4, $5);
 											fprintf(fp, "0\n2056\n0\n0\n0\n0\n0\n0\nMOV SP, %d\n", getBinding(0));printf("codeGen starts\n");
 											fprintf(fp, "CALL F0\n");
 											fprintf(fp, "MOV R2, 10\nPUSH R2\nPUSH R2\nPUSH R2\nPUSH R2\nPUSH R2\nINT 10\nPOP R0\nPOP R1\nPOP R1\nPOP R1\nPOP R1\n");
+											codeGen($2);
 											codeGen($$);
 											return 0;
 										 }
-		| TypeDefBlock GDeclBlock MainBlock {
+		| TypeDefBlock ClassDefBlock GDeclBlock MainBlock {
 											fprintf(fp, "0\n2056\n0\n0\n0\n0\n0\n0\nMOV SP, %d\n", getBinding(0));printf("codeGen starts\n");
 											fprintf(fp, "CALL F0\n");
 											fprintf(fp, "MOV R2, 10\nPUSH R2\nPUSH R2\nPUSH R2\nPUSH R2\nPUSH R2\nINT 10\nPOP R0\nPOP R1\nPOP R1\nPOP R1\nPOP R1\n");
-											codeGen($3);
+											codeGen($2);
+											codeGen($4);
 											return 0;
 										 }
 		| TypeDefBlock MainBlock {	
@@ -83,19 +92,21 @@ Program : TypeDefBlock GDeclBlock FDefBlock MainBlock {
 									codeGen($2);
 									return 0;
 								 }
-		| GDeclBlock FDefBlock MainBlock {	
-											$$ = makeConnectorNode($2, $3);
+		| ClassDefBlock GDeclBlock FDefBlock MainBlock {	
+											$$ = makeConnectorNode($3, $4);
 											fprintf(fp, "0\n2056\n0\n0\n0\n0\n0\n0\nMOV SP, %d\n", getBinding(0));printf("codeGen starts\n");
 											fprintf(fp, "CALL F0\n");
 											fprintf(fp, "MOV R2, 10\nPUSH R2\nPUSH R2\nPUSH R2\nPUSH R2\nPUSH R2\nINT 10\nPOP R0\nPOP R1\nPOP R1\nPOP R1\nPOP R1\n");
+											codeGen($1);
 											codeGen($$);
 											return 0;
 										 }
-		| GDeclBlock MainBlock {	
+		| ClassDefBlock GDeclBlock MainBlock {	
 									fprintf(fp, "0\n2056\n0\n0\n0\n0\n0\n0\nMOV SP, %d\n", getBinding(0));printf("codeGen starts\n");
 									fprintf(fp, "CALL F0\n");
 									fprintf(fp, "MOV R2, 10\nPUSH R2\nPUSH R2\nPUSH R2\nPUSH R2\nPUSH R2\nINT 10\nPOP R0\nPOP R1\nPOP R1\nPOP R1\nPOP R1\n");
-									codeGen($2);
+									codeGen($1);
+									codeGen($3);
 									return 0;
 								 }
 		| MainBlock {	
@@ -124,12 +135,54 @@ FieldDeclList : FieldDeclList FieldDecl {$$ = addField($1, $2);}
 	| FieldDecl {$$ = $1;}
 	;
 
-FieldDecl : TypeName ID ';' {$$ = makeField($1, $2); Tsize++;}
+FieldDecl : TypeName ID ';' {$$ = makeField(TlookUp($1), $2); Tsize++;}
 	;
 
-TypeName : INT {$$ = inttype;}
-	| STR {$$ = strtype;}
-	| ID {$$ = TlookUp($1);}
+TypeName : INT {$$ ="int";}
+	| STR {$$ = "str";}
+	| ID {$$ =strdup($1);}
+	;
+
+ClassDefBlock : CLASS ClassDefList ENDCLASS {$$ = $2;}
+	|	{$$ = NULL;}
+	;
+
+ClassDefList : ClassDefList ClassDef {$$ = makeConnectorNode($1, $2);}
+	| ClassDef {$$ = $1;}
+	;
+
+ClassDef : Cname '{' classDel MethodDefs '}' {
+																		cInstall(currClass); 
+																		clabel++; 
+																		funcPosition = 0; 
+																		classField = 0;
+																		currClass = NULL;
+																		$$ = $4;
+																		}
+		;
+
+classDel : DECL Fieldlists MethodDecl ENDDECL {printClassMember(currClass);}
+
+Cname : ID {currClass =  makeClass($1);}
+	;
+
+Fieldlists : Fieldlists Fld {}
+	|
+	;
+
+Fld : TypeName ID  ';' {classFinstall(currClass, $1, $2); classField++; }
+	;
+
+MethodDecl : MethodDecl Mdecl {}
+	| Mdecl {}
+	;
+
+Mdecl : TypeName ID '(' ParamList ')' ';' {classMinstall(currClass,TlookUp($1), $2, $4); funcPosition++;}
+	| TypeName ID '(' ')' ';' {classMinstall(currClass,TlookUp($1), $2, NULL); funcPosition++;}
+	;
+
+MethodDefs : MethodDefs Fdef {$$ = makeConnectorNode($1, $2);}
+	| Fdef {$$ = $1;}
 	;
 
 GDeclBlock : DECL GdeclList ENDDECL {printSymTable();}
@@ -139,7 +192,7 @@ GdeclList : GdeclList GDecl {}
 	| GDecl {}
 	;
 
-GDecl : TypeName GidList ';' 	{
+GDecl : ID GidList ';' 	{
 								while($2 != NULL)
 								{
 									install($2->name, $1, $2->size, $2->rowsize, $2->argList);
@@ -165,21 +218,38 @@ FDefBlock : FDefBlock Fdef {$$ = makeConnectorNode($1, $2);}
 	;
 
 Fdef : fname ParamList ')' '{' LdeclBlock Body '}'{
-															funcLookUp($1->type, $1->name, $2);
+															if(currClass == NULL)
+																funcLookUp($1->type, $1->name, $2);
 															$$ = makeFuncDefNode($1->type, $1->name, $6);
 															currFType = NULL;
 															Lsym = NULL;
 															Lbinding = 1;
 														}
+	| fname ')' '{' LdeclBlock Body '}'{
+											if(currClass == NULL)
+												funcLookUp($1->type, $1->name, NULL);
+											$$ = makeFuncDefNode($1->type, $1->name, $5);
+											currFType = NULL;
+											Lsym = NULL;
+											Lbinding = 1;
+										}
 	; 
 
-fname : TypeName ID '(' {$$ = makeArgList($1, $2); currFType = $1; Lsym = (lookUp($2))->Lsym;printf("%s function starts\n\n", $2);};
+fname : TypeName ID '(' {$$ = makeArgList(TlookUp($1), $2); currFType = TlookUp($1); 
+		if(lookUp($2) != NULL)
+			Lsym = (lookUp($2))->Lsym;
+		if(currClass != NULL)
+			Lsym = (classMlookUp(currClass, $2))->Lsym;
+		if(Lsym == NULL)
+			printf("NULLLLLLLL\n");
+		printf("%s function starts\n\n", $2);
+	};
 
 ParamList : Param ',' ParamList {$$ = addArgList($1, $3);}
 	| Param {$$ = $1;}
 	;
 
-Param : TypeName ID {$$ = makeArgList($1, $2);}
+Param : TypeName ID {$$ = makeArgList(TlookUp($1), $2);}
 	;
 
 
@@ -194,7 +264,7 @@ LDecList : LDecList LDecl {}
 LDecl : TypeName IdList ';' {
 							while($2 != NULL)
 								{
-									Linstall($2->name, $1, Lbinding);
+									Linstall($2->name, TlookUp($1), Lbinding);
 									Lbinding++;
 									$2 = $2->next;
 								}
@@ -213,7 +283,7 @@ MainBlock : mains ')' '{' LdeclBlock Body '}' {
 											  }
           ;
 
-mains : INT MAIN '(' {install("main", inttype, 0, 0, NULL); $$ = makeArgList(inttype, "main"); currFType = inttype; Lsym = NULL;};
+mains : INT MAIN '(' {install("main", "int", 0, 0, NULL); $$ = makeArgList(inttype, "main"); currFType = inttype; Lsym = NULL;};
 
 Body : START slist END {$$ = $2;}
 	| START END {$$ = NULL;}
@@ -284,11 +354,23 @@ expr : expr PLUS expr {$$ = makeOperatorNode('+',$1, $3);}
 	| expr OR expr {$$ = makeOrNode($1, $3);}
 	| expr AND expr {$$ = makeAndNode($1, $3);}
 	| field {$$ = $1;}
+	| fieldFucntion {$$ = $1;}
 	| ALLOC '(' ')' {$$ = makeAllocNode();}
 	| FREE '(' expr ')' {$$ = makeFreeNode($3);}
 	| INITIALIZE '(' ')' {$$ = makeInitializeNode();}
 	| NIL {$$ = makeNullNode();}
+	| NEW '(' ID ')' {$$ = makeNewFunctionNode($3);}
+	| DELETE '(' field ')' {$$ = makeDeleteNode($3);}
 	;
+
+fieldFucntion : SELF '.' ID '(' Arglist ')' {$$ = makeFieldFucntionNode(makeSelfNode(), $3, $5);}
+	| SELF '.' ID '(' ')' {$$ = makeFieldFucntionNode(makeSelfNode(), $3, NULL);}
+	| ID '.' ID '(' Arglist ')' {$$ = makeFieldFucntionNode(makeVarNode($1), $3, $5);}
+	| ID '.' ID '(' ')' {$$ = makeFieldFucntionNode(makeVarNode($1), $3, NULL);}
+	| field '.' ID '(' Arglist ')' {$$ = makeFieldFucntionNode($1, $3, $5);}
+	| field '.' ID '(' ')' {$$ = makeFieldFucntionNode($1, $3, NULL);}
+	;
+
 
 Arglist : expr ',' Arglist {$$ = makeConnectorNode($1, $3);}
 	| expr {$$ = makeConnectorNode($1, NULL);}
@@ -296,6 +378,7 @@ Arglist : expr ',' Arglist {$$ = makeConnectorNode($1, $3);}
 
 field : field '.' ID {$$ = makeFieldNode($1, $3);}
 	| ID '.' ID {$$ = makeFieldNode(makeVarNode($1), $3);}
+	| SELF '.' ID {$$ = makeFieldNode(makeSelfNode(), $3);}
 	;
 
 %%

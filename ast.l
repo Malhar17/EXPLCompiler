@@ -39,6 +39,11 @@
 "free" {return FREE;}
 "initialize" {return INITIALIZE;}
 "null" {return NIL;}
+"class" {return CLASS;}
+"endclass" {return ENDCLASS;}
+"self" {return SELF;}
+"new" {return NEW;}
+"delete" {return DELETE;}
 "+"	{charnumber += yyleng;return PLUS;}
 "-"	{charnumber += yyleng;return MINUS;}
 "*"	{charnumber += yyleng;return MUL;}
@@ -64,7 +69,7 @@
 "," {charnumber += yyleng; return *yytext;}
 "\t" {charnumber += yyleng;}
 [0-9]+	{var = stringcopy(yytext, yyleng);yylval.integer = atoi(var); printf("%d",atoi(var)); charnumber += yyleng; return NUM;}
-[a-zA-Z][a-zA-Z|0-9]* {char *var = strdup(yytext);printf("lex %s\n",var);charnumber += yyleng;yylval.string = var; return ID;}
+[_|a-zA-Z][_|a-zA-Z|0-9]* {char *var = strdup(yytext);printf("lex %s\n",var);charnumber += yyleng;yylval.string = var; return ID;}
 "\"".*"\"" {var = strdup(yytext);charnumber += yyleng;yylval.string = var; return STRING;}
 .	{printf("%d.%d unknown character\n", linenumber, charnumber);exit(1);}
 

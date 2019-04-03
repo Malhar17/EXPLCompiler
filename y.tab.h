@@ -88,7 +88,12 @@ extern int yydebug;
     ALLOC = 298,
     INITIALIZE = 299,
     FREE = 300,
-    NIL = 301
+    NIL = 301,
+    CLASS = 302,
+    ENDCLASS = 303,
+    DELETE = 304,
+    NEW = 305,
+    SELF = 306
   };
 #endif
 /* Tokens.  */
@@ -136,13 +141,18 @@ extern int yydebug;
 #define INITIALIZE 299
 #define FREE 300
 #define NIL 301
+#define CLASS 302
+#define ENDCLASS 303
+#define DELETE 304
+#define NEW 305
+#define SELF 306
 
 /* Value type.  */
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 
 union YYSTYPE
 {
-#line 36 "ast.y" /* yacc.c:1909  */
+#line 41 "ast.y" /* yacc.c:1909  */
 
 	struct tnode *yys;	
 	int integer;
@@ -151,8 +161,9 @@ union YYSTYPE
 	struct argumentList *argList;
 	struct TypeTable *typeTable;
 	struct FieldList *fieldsList;
+	struct ClassType *classTable;
 
-#line 156 "y.tab.h" /* yacc.c:1909  */
+#line 167 "y.tab.h" /* yacc.c:1909  */
 };
 
 typedef union YYSTYPE YYSTYPE;
